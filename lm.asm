@@ -336,13 +336,36 @@ segment code
     		mov     	dl,3			;coluna 0-79
 			call 	print_string
 
-mov    	ah,08h
-int     21h
-mov  	ah,0   			; set video mode
-mov  	al,[modo_anterior]   	; modo anterior
-int  	10h
-mov     ax,4c00h
-int     21h
+	;open file
+		call open_file
+		call close_file
+		jmp exit_program
+
+ErrorOpening:
+	mov dx, OpenError ; exibe um erro
+	mov ah,09h      ; usando a função 09h
+	int 21h         ; chama serviço do DOS
+	mov ax,4C01h        ; termina programa com um errorlevel =1 
+	int 21h
+	jmp exit_program
+
+ErrorReading:
+	mov dx,ReadError ; exibe um erro
+	mov ah,09h      ; usando a função 09h
+	int 21h         ; chama serviço do DOS
+	mov ax,4C02h        ; termina programa com um errorlevel =2
+	int 21h
+	jmp exit_program
+
+exit_program:
+
+	mov    	ah,08h
+	int     21h
+	mov  	ah,0   			; set video mode
+	mov  	al,[modo_anterior]   	; modo anterior
+	int  	10h
+	mov     ax,4c00h
+	int     21h
 
 print_string:	
 	call	cursor
@@ -356,7 +379,101 @@ print_string:
 	jne		print_string
 	ret
 
+open_file:
+	; Abrir o arquivo
+    	mov 	ah, 3Dh                   
+    	mov 	al, 0                     
+    	mov 	dx, file_name             
+    	int 	21h        
+		jc ErrorOpening     ; desvia se carry flag estiver ligada - erro!              
+		mov		[file_handle], ax
+		mov 	cx, 249            ; Tamanho do buffer de leitura
+		line_loop:
+			; Ler 250 bytes (valores de pixel) do arquivo
+				push cx
+				mov ah, 3Fh                    ; Função 3Fh - Ler do arquivo
+				mov bx, [file_handle]                     ; Identificador de arquivo
+				mov cx, 1000
+				lea dx, [buffer]
+				int 21h                       ; Chamar a interrupção 21h
+				jc ErrorReading     ; desvia se carry flag estiver ligada - erro!
 
+				pop cx ;recuperando valor da linha
+				mov dx, cx
+				add dx, 100; ajustando posição na tela
+				mov cx, 249; quantidade de pixels na linha
+
+
+				mov ax, [buffer]
+					draw_pixels:
+						cmp 	al, 0  ; Verificar se é um espaço em branco
+						je skip_caracter
+						mov byte[cor], branco
+						call convert_ascii_int
+						call convert_vga_scale
+
+						mov 	bx, 269
+						sub 	bx, cx
+						push 	bx
+						push 	dx  
+						call plot_xy
+						
+						loop draw_pixels               ; Repetir até copiar todos os bytes do buffer
+				sub dx, 100
+				mov cx, dx
+			loop line_loop                  ; Continuar lendo do arquivo
+		ret
+skip_caracter:
+	inc 	ax
+	jmp 	draw_pixels
+
+convert_ascii_int:
+	push ax
+	sub al, 0                 ; Convert to numeric value
+	mov bl, 100
+	mul bl
+	add [buffer_pixel], al
+	pop ax
+	inc ax
+	push ax
+	sub al, 0                 ; Convert to numeric value
+	mov bl, 10
+	mul bl
+	add [buffer_pixel], al
+	pop ax
+	inc ax
+	push ax
+	sub al, 0                 ; Convert to numeric value
+	add [buffer_pixel], al
+	pop ax
+	inc ax
+	ret
+
+close_file:
+    ; Fechar o arquivo
+    mov ah, 3Eh                    ; Função 3Eh - Fechar arquivo
+    mov bx, [file_handle]                     ; Identificador de arquivo
+    int 0x21                       ; Chamar a interrupção 21h
+
+convert_vga_scale:
+	cmp byte[buffer_pixel], 123
+	je	scale0
+	cmp byte[buffer_pixel], 124
+	je	scale1
+	cmp byte[buffer_pixel], 125 
+	je	scale2
+	ret
+
+scale0:
+	inc ax
+	mov byte[cor], verde
+	ret
+scale1:
+	mov byte[cor], vermelho
+	ret
+scale2:
+	mov byte[cor], azul
+	ret
 
 ;***************************************************************************
 ;
@@ -931,8 +1048,14 @@ btn_string_HistLBP     db      'Hist',0,'LBP',0
 btn_string_exit     db      'Sair',0
 footer_string       db      'Lucas Manfioletti turma 6.1',0, 'Sistemas Embarcados 2023/1',0
 
+pixel_position_x		db		0
+pixel_position_y		db		0
+buffer_pixel 	db		0
+buffer times 1000 db 0
 file_name		db		"imagem.txt", 0
-image_data		db 		250*250
+file_handle		dw	0
+OpenError DB "Ocorreu um erro(abrindo)!$"
+ReadError DB "Ocorreu um erro(lendo)!$"
 ;*************************************************************************
 segment stack stack
     		resb 		512
