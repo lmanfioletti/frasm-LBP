@@ -336,9 +336,7 @@ segment code
     		mov     	dl,3			;coluna 0-79
 			call 	print_string
 
-	;open file
-		call open_file
-		;call close_file
+		call draw_original_image
 		back_main_loop:
 		jmp exit_program
 
@@ -372,32 +370,52 @@ print_string:
 	ret
 
 open_file:
-	; Abrir o arquivo
-    	mov 	ah, 3Dh                   
-    	mov 	al, 0                     
-    	mov 	dx, file_name             
-    	int 	21h        
-		jc ErrorOpening     ; desvia se carry flag estiver ligada - erro!              
+	;push all
+		pushf
+		push ax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+		push bp
+	;function body
+		mov 	ah, 3Dh                   
+		mov 	al, 0                     
+		mov 	dx, file_name             
+		int 	21h        
+		jc ErrorOpening     ; jmp if flag is on - error!              
 		mov		[file_handle], ax
-		mov word[file_pointer_offset], 0
-		
-		mov 	cx, 249           ; quantidade de linhas
+	;pop all
+		pop	bp
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		popf
+		ret	
+
+draw_original_image:
+		call open_file
+
+		mov 	cx, 249           ; line's amount
 		line_loop:
-			call file_read_line; carrega o buffer da linha
+
+			call file_read_line; load line buffer
 			mov dx, cx
-			add dx, 100; ajustando posição na tela
+			add dx, 100; fixing screen position
 			push cx
-			mov cx, 249; quantidade de pixels na linha
+			mov cx, 250; line's pixels lenght
 				draw_pixels:
-					push dx
-					mov bx, 249
+					mov bx, 250
 					sub bx, cx
-					mov al, byte [buffer_line_1 + bx]
-					mov [buffer_pixel], al
+					mov al, byte[buffer_line_1 + bx]
+					mov byte[buffer_byte], al
 					call convert_vga_scale
-					pop dx
 					;plot pixel
-						mov 	bx, 269
+						mov 	bx, 279
 						sub 	bx, cx
 						push 	bx
 						push 	dx  
@@ -422,196 +440,235 @@ close_file:
     int 0x21                       ; Chamar a interrupção 21h
 	jmp back_main_loop
 
-file_read_line:
-	; read 1 line
-		mov ah, 3Fh                    ; Função 3Fh - Ler do arquivo
-		mov bx, [file_handle]                     ; Identificador de arquivo
+read_one_byte:
+	;push all
+		pushf
+		push ax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+		push bp
+	;function body
+		mov ah, 3Fh      
+		mov bx, [file_handle]                 
 		mov cx, 1
-		mov dx, buffer
-		int 21h                       ; Chamar a interrupção 21h
-		jc ErrorReading     ; desvia se carry flag estiver ligada - erro!
+		mov dx, buffer_byte
+		int 21h                     
+		jc ErrorReading     ; jmp if flag is on - error!  
 		cmp ax, 0
 		je close_file
-		;creating once line buffer
-		mov ax, [buffer]
-		mov cx, 249; quantidade de pixels na linha
+	;pop all
+		pop	bp
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		popf
+		ret	
+
+
+
+file_read_line:
+	;push all
+		pushf
+		push ax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+		push bp
+	; function body
+		mov cx, 250; pixels line amount
 		line_loop_buffer:
-			call convert_ascii_int
-			back_covertion:
-			mov bx, 249
-			sub bx, cx
-			push ax
-			mov al, byte[buffer_pixel]
-			mov [buffer_line_1 + bx], al
-			pop ax
+			mov bx, 0
+			mov byte[pixel_size_byte], 0 ;used to know number size
+			next_byte:
+				call read_one_byte
+				mov al, byte[buffer_byte]
+				mov byte[buffer_pixel + bx], al
+				cmp al, 20h
+				je convert_ascii_int
+				inc bx
+				add byte[pixel_size_byte], 1
+				jmp next_byte
+			back_convert_ascii_int:
+				mov bx, 249
+				sub bx, cx
+				mov al, byte[buffer_byte]
+				mov [buffer_line_1 + bx], al
 			loop line_loop_buffer
-		;fix file pointer for the next line
-		mov ah, 42h
-		mov bx, [file_handle]
-		mov cx, [file_pointer_offset]
-		mov al, 0
-		int 21h
-		jc ErrorReading     ; desvia se carry flag estiver ligada - erro!
-		jmp back_line_loop
+	;pop all
+		pop	bp
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		popf
 		ret	
 
 ;convert to int
 	convert_ascii_int:
-		push ax
-		cmp al, 20h
+		cmp byte[pixel_size_byte], 0
 		je close_file
-		inc ax
-		cmp al, 20h
+		cmp byte[pixel_size_byte], 1
 		je convert_ascii_int_1
-		inc ax
-		cmp al, 20h
+		cmp byte[pixel_size_byte], 2
 		je convert_ascii_int_2
-		inc ax
-		cmp al, 20h
+		cmp byte[pixel_size_byte], 3
 		je convert_ascii_int_3
 		
 	convert_ascii_int_1:
-		pop ax
-		push ax
-		sub al, 0                 ; Convert to numeric value
-		mov [buffer_pixel], al
-		pop ax
-		inc ax
-		add word[file_pointer_offset], 2 
-		jmp		back_covertion
+		mov al, byte[buffer_pixel]
+		sub al, 30h
+		mov byte[buffer_byte], al
+		jmp		back_convert_ascii_int
 
 	convert_ascii_int_2:
-		pop ax
-		push ax
-		sub al, 0                 ; Convert to numeric value
+		mov al, byte[buffer_pixel]
+		sub al, 30h
 		mov bl, 10
 		mul bl
-		mov [buffer_pixel], al
-		pop ax
-		inc ax
-		push ax
-		sub al, 0                 ; Convert to numeric value
-		add [buffer_pixel], al
-		pop ax
-		inc ax
-		add word[file_pointer_offset], 3 
-		jmp		back_covertion
+		mov byte[buffer_byte], al
+		mov al, byte[buffer_pixel + 1]
+		sub al, 30h
+		add byte[buffer_byte], al
+		jmp		back_convert_ascii_int
 
 	convert_ascii_int_3:
-	pop ax
-	sub al, 0                 ; Convert to numeric value
-	mov bl, 100
-	mul bl
-	mov byte[buffer_pixel], 0
-	add [buffer_pixel], al
-	pop ax
-	inc ax
-	push ax
-	sub al, 0                 ; Convert to numeric value
-	mov bl, 10
-	mul bl
-	add [buffer_pixel], al
-	pop ax
-	inc ax
-	push ax
-	sub al, 0                 ; Convert to numeric value
-	add [buffer_pixel], al
-	pop ax
-	inc ax
-	add word[file_pointer_offset], 4 
-	jmp		back_covertion
+		mov al, byte[buffer_pixel]
+		sub al, 30h
+		mov bl, 100
+		mul bl
+		mov byte[buffer_byte], al
+		mov al, byte[buffer_pixel + 1]
+		sub al, 30h
+		mov bl, 10
+		mul bl
+		add byte[buffer_byte], al
+		mov al, byte[buffer_pixel + 2]
+		sub al, 30h
+		add byte[buffer_byte], al
+		jmp		back_convert_ascii_int
 
+consolTest:
+	mov dx,consolTestmsg ; exibe um erro
+	mov ah,09h      ; usando a função 09h
+	int 21h         ; chama serviço do DOS
+	mov ax,4C02h        ; termina programa com um errorlevel =2
+	int 21h
+	jmp exit_program
 
 ;convert to vga scale
 	convert_vga_scale:
-		mov ax, 0          ; Zerar o registrador AX
-		mov bx, 0          ; Zerar o registrador BX
-		mov al, byte[buffer_pixel]        ; Dividendo (valor a ser dividido)
-		mov bl, 16          ; Divisor
-		div bl             ; Divide AX pelo divisor (BL)
-		cmp al, 0
-		je	scale0
-		cmp al, 1
-		je	scale1
-		cmp al, 2
-		je	scale2
-		cmp al, 3
-		je	scale3
-		cmp al, 4
-		je	scale4
-		cmp al, 5
-		je	scale5
-		cmp al, 6
-		je	scale6
-		cmp al, 7
-		je	scale7
-		cmp al, 8
-		je	scale8
-		cmp al, 9
-		je	scale9
-		cmp al, 10
-		je	scale10
-		cmp al, 11
-		je	scale11
-		cmp al, 12
-		je	scale12
-		cmp al, 13
-		je	scale13
-		cmp al, 14
-		je	scale14
-		cmp al, 15
-		je	scale15
-		ret
+		;push all
+			pushf
+			push ax
+			push bx
+			push cx
+			push dx
+		;function body
+			mov ax, 0          ; Zerar o registrador AX
+			mov bx, 0          ; Zerar o registrador BX
+			mov al, byte[buffer_byte]        ; Dividendo (valor a ser dividido)
+			mov bl, 16          ; Divisor
+			div bl             ; Divide AX pelo divisor (BL)
+			cmp al, 0
+			je	scale0
+			cmp al, 1
+			je	scale1
+			cmp al, 2
+			je	scale2
+			cmp al, 3
+			je	scale3
+			cmp al, 4
+			je	scale4
+			cmp al, 5
+			je	scale5
+			cmp al, 6
+			je	scale6
+			cmp al, 7
+			je	scale7
+			cmp al, 8
+			je	scale8
+			cmp al, 9
+			je	scale9
+			cmp al, 10
+			je	scale10
+			cmp al, 11
+			je	scale11
+			cmp al, 12
+			je	scale12
+			cmp al, 13
+			je	scale13
+			cmp al, 14
+			je	scale14
+			cmp al, 15
+			je	scale15
+			back_color_change_on_covertion_scales:
+		;pop all
+			pop	dx
+			pop	cx
+			pop	bx
+			pop	ax
+			popf
+			ret	
 
 	;convert scales
 		scale0:
 			mov byte[cor], preto
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale1:
 			mov byte[cor], cinza
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale2:
 			mov byte[cor], azul
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale3:
 			mov byte[cor], azul_claro
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale4:
 			mov byte[cor], verde
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale5:
 			mov byte[cor], verde_claro
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale6:
 			mov byte[cor], cyan
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale7:
 			mov byte[cor], cyan_claro
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale8:
 			mov byte[cor], vermelho
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale9:
 			mov byte[cor], rosa
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale10:
 			mov byte[cor], magenta
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale11:
 			mov byte[cor], magenta_claro
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale12:
 			mov byte[cor], marrom
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale13:
 			mov byte[cor], amarelo
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale14:
 			mov byte[cor], branco
-			ret
+			jmp back_color_change_on_covertion_scales
 		scale15:
 			mov byte[cor], branco_intenso
-			ret
+			jmp back_color_change_on_covertion_scales
 ;***************************************************************************
 ;
 ;   fun��o cursor
@@ -1185,14 +1242,15 @@ btn_string_HistLBP     db      'Hist',0,'LBP',0
 btn_string_exit     db      'Sair',0
 footer_string       db      'Lucas Manfioletti turma 6.1',0, 'Sistemas Embarcados 2023/1',0
 
-buffer_pixel 	db		0
-buffer db 0
-buffer_line_1 times 250 db 17
+buffer_byte db 0
+buffer_pixel times  4  db 0
+buffer_line_1 times 250 db 0
+pixel_size_byte	db	0
 file_name		db		"imagem.txt", 0
-file_pointer_offset		dw	0
 file_handle		dw	0
 OpenError DB "Ocorreu um erro(abrindo)!$"
 ReadError DB "Ocorreu um erro(lendo)!$"
+consolTestmsg DB "Follow from here!$"
 ;*************************************************************************
 segment stack stack
     		resb 		512
