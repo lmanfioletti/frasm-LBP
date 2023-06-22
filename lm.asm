@@ -19,292 +19,418 @@ segment code
    		mov     	ah,0
     	int     	10h
 
-;draw layout base
-	mov		byte[cor],branco 
-	;global border
-		;bottom
-			mov		ax,0
+		call draw_layout_base_default
+		jmp start_mouse
+start_mouse:
+	mov ax,0
+	int 33h
+	mov ax,1
+	int 33h 
+	jmp click_check
+
+consolTest:
+	mov dx,consolTestmsg ; exibe um erro
+	mov ah,09h      ; usando a função 09h
+	int 21h         ; chama serviço do DOS
+	mov ax,4C02h        ; termina programa com um errorlevel =2
+	int 21h
+	jmp exit_program
+
+click_check:
+	mov ax,5              
+	mov bx,0
+	int 33h               
+	cmp bx,0              
+	je click_check ; if don't have click on screen -> bx = 0
+	cmp dx, 14
+	jb click_check ; if y < 14 is false
+	cmp dx, 64
+	jnb click_check ; if y > 64 is false
+	call choose_click
+	jmp click_check
+
+choose_click:
+	;check open button
+		cmp cx, 19
+		jb click_check
+		cmp cx, 69
+		jnb check_LBP_button
+		call open_button_select
+		ret
+	;check LBP button
+	check_LBP_button:
+		cmp cx, 74
+		jb click_check
+		cmp cx, 124
+		jnb check_Hist_button
+		call LBP_button_select
+		ret
+	ret
+	;check Hist button
+	check_Hist_button:
+		cmp cx, 129
+		jb click_check
+		cmp cx, 179
+		jnb check_HistLBP_button
+		call Hist_button_select
+		ret
+	ret
+	;check HistLBP button
+	check_HistLBP_button:
+		cmp cx, 184
+		jb click_check
+		cmp cx, 234
+		jnb check_exit_button
+		call HistLBP_button_select
+		ret
+	ret
+	;check exit button
+	check_exit_button:
+		cmp cx, 239
+		jb click_check
+		cmp cx, 289
+		jnb click_check
+		call exit_button_select
+		ret
+	ret
+
+open_button_select:
+	call reset_layout_base_buttons 
+	mov		byte[cor],amarelo
+	call draw_layout_base_default_open_button
+	call draw_original_image 
+	ret
+LBP_button_select:
+	call reset_layout_base_buttons 
+	mov		byte[cor],amarelo
+	call draw_layout_base_default_LBP_button 
+	ret
+Hist_button_select:
+	call reset_layout_base_buttons 
+	mov		byte[cor],amarelo
+	call draw_layout_base_default_Hist_button
+	call draw_image_hist 
+	ret
+HistLBP_button_select:
+	call reset_layout_base_buttons 
+	mov		byte[cor],amarelo
+	call draw_layout_base_default_HistLBP_button 
+	ret
+exit_button_select:
+	call reset_layout_base_buttons 
+	mov		byte[cor],amarelo
+	call draw_layout_base_default_exit_button 
+	jmp exit_program
+	ret
+
+reset_layout_base_buttons:
+	mov		byte[cor],branco_intenso 
+	call draw_layout_base_default_open_button
+	call draw_layout_base_default_LBP_button
+	call draw_layout_base_default_Hist_button
+	call draw_layout_base_default_HistLBP_button
+	call draw_layout_base_default_exit_button
+	ret
+
+draw_layout_base_default:
+	mov		byte[cor],branco_intenso 
+	call draw_layout_base_default_global_border
+	call draw_layout_base_default_open_button
+	call draw_layout_base_default_LBP_button
+	call draw_layout_base_default_Hist_button
+	call draw_layout_base_default_HistLBP_button
+	call draw_layout_base_default_exit_button
+	call draw_layout_base_default_footer
+	ret
+
+draw_layout_base_default_global_border:
+	;bottom
+		mov		ax,0
+		push		ax
+		mov		ax,0
+		push		ax
+		mov		ax,639
+		push		ax
+		mov		ax,0
+		push		ax
+		call		line
+	;right
+		mov		ax,639
+		push		ax
+		mov		ax,0
+		push		ax
+		mov		ax,639
+		push		ax
+		mov		ax,479
+		push		ax
+		call		line
+	;top
+		mov		ax,639
+		push		ax
+		mov		ax,479
+		push		ax
+		mov		ax,0
+		push		ax
+		mov		ax,479
+		push		ax
+		call		line
+	;left
+		mov		ax,0
+		push		ax
+		mov		ax,479
+		push		ax
+		mov		ax,0
+		push		ax
+		mov		ax,0
+		push		ax
+		call		line
+	ret
+draw_layout_base_default_open_button:
+	;border
+		;top
+			mov		ax,19 ;19px
 			push		ax
-			mov		ax,0
+			mov		ax,464 ;464px
 			push		ax
-			mov		ax,639
+			mov		ax,69
 			push		ax
-			mov		ax,0
+			mov		ax,464
 			push		ax
 			call		line
 		;right
-			mov		ax,639
+			mov		ax,69
 			push		ax
-			mov		ax,0
+			mov		ax,464
 			push		ax
-			mov		ax,639
+			mov		ax,69
 			push		ax
-			mov		ax,479
+			mov		ax, 414
 			push		ax
 			call		line
-		;top
-			mov		ax,639
+		;bottom
+			mov		ax,69
 			push		ax
-			mov		ax,479
+			mov		ax,414
 			push		ax
-			mov		ax,0
+			mov		ax,19
 			push		ax
-			mov		ax,479
+			mov		ax,414
 			push		ax
 			call		line
 		;left
-			mov		ax,0
+			mov		ax,19
 			push		ax
-			mov		ax,479
+			mov		ax,414
 			push		ax
-			mov		ax,0
+			mov		ax,19
 			push		ax
-			mov		ax,0
+			mov		ax,464
 			push		ax
 			call		line
+	;text
+    	mov     	dh,2			;linha 0-29
+    	mov     	dl,3			;coluna 0-79
+		lea bx, [btn_string_open]
+		call 	print_string
+	ret
+draw_layout_base_default_LBP_button:
+	;border
+		;top
+			mov		ax,74 
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,124
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+		;right
+			mov		ax,124
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,124
+			push		ax
+			mov		ax, 414
+			push		ax
+			call		line
+		;bottom
+			mov		ax,124
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,74
+			push		ax
+			mov		ax,414
+			push		ax
+			call		line
+		;left
+			mov		ax,74
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,74
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+	;text
+		mov     	dh,2			;linha 0-29
+		mov     	dl,10			;coluna 0-79
+		lea bx, [btn_string_LBP]
+		call 	print_string
+	ret
 
-	;open button
-		;border
-			;top
-				mov		ax,19 ;19px
-				push		ax
-				mov		ax,464 ;464px
-				push		ax
-				mov		ax,69
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-			;right
-				mov		ax,69
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,69
-				push		ax
-				mov		ax, 414
-				push		ax
-				call		line
-			;bottom
-				mov		ax,69
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,19
-				push		ax
-				mov		ax,414
-				push		ax
-				call		line
-			;left
-				mov		ax,19
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,19
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-		;text
-    		mov     	dh,2			;linha 0-29
-    		mov     	dl,3			;coluna 0-79
-			lea bx, [btn_string_open]
-			call 	print_string
-	;LBP button
-		;border
-			;top
-				mov		ax,74 
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,124
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-			;right
-				mov		ax,124
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,124
-				push		ax
-				mov		ax, 414
-				push		ax
-				call		line
-			;bottom
-				mov		ax,124
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,74
-				push		ax
-				mov		ax,414
-				push		ax
-				call		line
-			;left
-				mov		ax,74
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,74
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-		;text
-    		mov     	dh,2			;linha 0-29
-    		mov     	dl,10			;coluna 0-79
-			lea bx, [btn_string_LBP]
-			call 	print_string
-	
-	;Hist button
-		;border
-			;top
-				mov		ax,129 
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,179
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-			;right
-				mov		ax,179
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,179
-				push		ax
-				mov		ax, 414
-				push		ax
-				call		line
-			;bottom
-				mov		ax,179
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,129
-				push		ax
-				mov		ax,414
-				push		ax
-				call		line
-			;left
-				mov		ax,129
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,129
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-		;text
-    		mov     	dh,2			;linha 0-29
-    		mov     	dl,17			;coluna 0-79
-			lea bx, [btn_string_Hist]
-			call 	print_string
-	;HistLBP button
-		;border
-			;top
-				mov		ax,184 
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,234
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-			;right
-				mov		ax,234
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,234
-				push		ax
-				mov		ax, 414
-				push		ax
-				call		line
-			;bottom
-				mov		ax,234
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,184
-				push		ax
-				mov		ax,414
-				push		ax
-				call		line
-			;left
-				mov		ax,184
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,184
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-		;text
-    		mov     	dh,1			;linha 0-29
-    		mov     	dl,24			;coluna 0-79
-			lea bx, [btn_string_HistLBP]
-			call 	print_string
-			mov     	dh,2			;linha 0-29
-    		mov     	dl,24			;coluna 0-79
-			inc		bx
-			call 	print_string
-
-	;exit button
-		;border
-			;top
-				mov		ax,239 
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,289
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-			;right
-				mov		ax,289
-				push		ax
-				mov		ax,464
-				push		ax
-				mov		ax,289
-				push		ax
-				mov		ax, 414
-				push		ax
-				call		line
-			;bottom
-				mov		ax,289
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,239
-				push		ax
-				mov		ax,414
-				push		ax
-				call		line
-			;left
-				mov		ax,239
-				push		ax
-				mov		ax,414
-				push		ax
-				mov		ax,239
-				push		ax
-				mov		ax,464
-				push		ax
-				call		line
-		;text
-    		mov     	dh,2			;linha 0-29
-    		mov     	dl,31			;coluna 0-79
-			lea bx, [btn_string_exit]
-			call 	print_string
-	;footer
+draw_layout_base_default_Hist_button:
+	;border
+		;top
+			mov		ax,129 
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,179
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+		;right
+			mov		ax,179
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,179
+			push		ax
+			mov		ax, 414
+			push		ax
+			call		line
+		;bottom
+			mov		ax,179
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,129
+			push		ax
+			mov		ax,414
+			push		ax
+			call		line
+		;left
+			mov		ax,129
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,129
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+	;text
+    	mov     	dh,2			;linha 0-29
+    	mov     	dl,17			;coluna 0-79
+		lea bx, [btn_string_Hist]
+		call 	print_string
+	ret
+draw_layout_base_default_HistLBP_button:
+	;border
+		;top
+			mov		ax,184 
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,234
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+		;right
+			mov		ax,234
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,234
+			push		ax
+			mov		ax, 414
+			push		ax
+			call		line
+		;bottom
+			mov		ax,234
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,184
+			push		ax
+			mov		ax,414
+			push		ax
+			call		line
+		;left
+			mov		ax,184
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,184
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+	;text
+    	mov     	dh,1			;linha 0-29
+    	mov     	dl,24			;coluna 0-79
+		lea bx, [btn_string_HistLBP]
+		call 	print_string
+		mov     	dh,2			;linha 0-29
+    	mov     	dl,24			;coluna 0-79
+		inc		bx
+		call 	print_string
+	ret
+draw_layout_base_default_exit_button:
+	;border
+		;top
+			mov		ax,239 
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,289
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+		;right
+			mov		ax,289
+			push		ax
+			mov		ax,464
+			push		ax
+			mov		ax,289
+			push		ax
+			mov		ax, 414
+			push		ax
+			call		line
+		;bottom
+			mov		ax,289
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,239
+			push		ax
+			mov		ax,414
+			push		ax
+			call		line
+		;left
+			mov		ax,239
+			push		ax
+			mov		ax,414
+			push		ax
+			mov		ax,239
+			push		ax
+			mov		ax,464
+			push		ax
+			call		line
+	;text
+    	mov     	dh,2			;linha 0-29
+    	mov     	dl,31			;coluna 0-79
+		lea bx, [btn_string_exit]
+		call 	print_string
+	ret
+draw_layout_base_default_footer:
 		;border
 			;top
 				mov		ax,19 
@@ -335,10 +461,7 @@ segment code
 			mov     	dh,27			;linha 0-29
     		mov     	dl,3			;coluna 0-79
 			call 	print_string
-
-		call draw_original_image
-		back_main_loop:
-		jmp exit_program
+	ret
 
 ErrorOpening:
 	mov dx, OpenError ; exibe um erro
@@ -413,6 +536,7 @@ draw_original_image:
 					sub bx, cx
 					mov al, byte[buffer_line_1 + bx]
 					mov byte[buffer_byte], al
+					mov byte[isHistLBP], 0
 					call convert_vga_scale
 					;plot pixel
 						mov 	bx, 279
@@ -424,7 +548,65 @@ draw_original_image:
 			pop cx
 			loop line_loop                  ; Continuar lendo do arquivo
 		ret
-		
+
+draw_image_hist:
+	;push all
+		pushf
+		push ax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+		push bp
+	;function body
+		mov bx, bufferHistImg
+		mov cx, 16
+		mov dx, 346
+		mov si, 0
+		hist_loop_image:
+			mov al, byte[fixed_scale_vector + si] 
+			mov byte[cor], al
+			;plot pixel
+				;push bx
+				push cx
+
+				mov cx, 16
+				repeat_lines_to_large_hist:
+					push bx
+					mov		ax, dx
+					push		ax
+					mov		ax,19
+					push		ax
+					mov		ax, dx
+					push		ax
+					mov ax, word[bx]
+					mov bh, 0
+					mov bl, 4
+					div bl
+					mov		ah, 0
+					add ax, 19
+					push		ax
+					call		line
+					add dx, 1
+					pop bx  
+					loop repeat_lines_to_large_hist
+				pop cx
+				;pop bx
+				add bx, 2
+				inc si
+			loop hist_loop_image
+	;pop all
+		pop	bp
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		popf
+		ret
+
 ErrorReading:
 	mov dx,ReadError ; exibe um erro
 	mov ah,09h      ; usando a função 09h
@@ -432,13 +614,6 @@ ErrorReading:
 	mov ax,4C02h        ; termina programa com um errorlevel =2
 	int 21h
 	jmp exit_program
-
-close_file:
-    ; Fechar o arquivo
-    mov ah, 3Eh                    ; Função 3Eh - Fechar arquivo
-    mov bx, [file_handle]                     ; Identificador de arquivo
-    int 0x21                       ; Chamar a interrupção 21h
-	jmp back_main_loop
 
 read_one_byte:
 	;push all
@@ -513,6 +688,15 @@ file_read_line:
 		popf
 		ret	
 
+close_file:
+    ; Fechar o arquivo
+    mov ah, 3Eh                    ; Função 3Eh - Fechar arquivo
+    mov bx, [file_handle]                     ; Identificador de arquivo
+    int 0x21                       ; Chamar a interrupção 21h
+	jmp click_check
+
+
+
 ;convert to int
 	convert_ascii_int:
 		cmp byte[pixel_size_byte], 0
@@ -557,28 +741,40 @@ file_read_line:
 		add byte[buffer_byte], al
 		jmp		back_convert_ascii_int
 
-consolTest:
-	mov dx,consolTestmsg ; exibe um erro
-	mov ah,09h      ; usando a função 09h
-	int 21h         ; chama serviço do DOS
-	mov ax,4C02h        ; termina programa com um errorlevel =2
-	int 21h
-	jmp exit_program
+;inc hist
+	inc_hist_img:
+		add byte[bufferHistImg + bx], 1
+		jmp back_inc_hist_img
+
+	inc_hist_img_LBP:
+		add word[bufferHistImgLBP + bx], 1
+		jmp back_inc_hist_img	
 
 ;convert to vga scale
 	convert_vga_scale:
 		;push all
 			pushf
 			push ax
-			push bx
 			push cx
 			push dx
+			push bx
 		;function body
 			mov ax, 0          ; Zerar o registrador AX
 			mov bx, 0          ; Zerar o registrador BX
 			mov al, byte[buffer_byte]        ; Dividendo (valor a ser dividido)
 			mov bl, 16          ; Divisor
 			div bl             ; Divide AX pelo divisor (BL)
+			push ax
+			mov bx, 0
+			mov bl, 2
+			mul bl
+			mov bx, 0
+			mov bl, al
+			cmp byte[isHistLBP], 0
+			je inc_hist_img
+			jmp inc_hist_img_LBP
+			back_inc_hist_img:
+			pop ax
 			cmp al, 0
 			je	scale0
 			cmp al, 1
@@ -613,9 +809,9 @@ consolTest:
 			je	scale15
 			back_color_change_on_covertion_scales:
 		;pop all
+			pop bx
 			pop	dx
 			pop	cx
-			pop	bx
 			pop	ax
 			popf
 			ret	
@@ -1229,6 +1425,8 @@ magenta_claro	equ		13
 amarelo		equ		14
 branco_intenso	equ		15
 
+fixed_scale_vector db 0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7,15
+
 modo_anterior	db		0
 linha   	dw  		0
 coluna  	dw  		0
@@ -1251,6 +1449,10 @@ file_handle		dw	0
 OpenError DB "Ocorreu um erro(abrindo)!$"
 ReadError DB "Ocorreu um erro(lendo)!$"
 consolTestmsg DB "Follow from here!$"
+
+isHistLBP db 0
+bufferHistImg times 16 dw 0
+bufferHistImgLBP times 16 dw 0
 ;*************************************************************************
 segment stack stack
     		resb 		512
