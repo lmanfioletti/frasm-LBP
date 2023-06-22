@@ -103,7 +103,8 @@ open_button_select:
 LBP_button_select:
 	call reset_layout_base_buttons 
 	mov		byte[cor],amarelo
-	call draw_layout_base_default_LBP_button 
+	call draw_layout_base_default_LBP_button
+	call draw_lbp_image 
 	ret
 Hist_button_select:
 	call reset_layout_base_buttons 
@@ -522,8 +523,7 @@ open_file:
 
 draw_original_image:
 		call open_file
-
-		mov 	cx, 249           ; line's amount
+		mov 	cx, 250           ; line's amount
 		line_loop:
 
 			call file_read_line; load line buffer
@@ -534,7 +534,7 @@ draw_original_image:
 				draw_pixels:
 					mov bx, 250
 					sub bx, cx
-					mov al, byte[buffer_line_1 + bx]
+					mov al, byte[buffer_line + bx]
 					mov byte[buffer_byte], al
 					mov byte[isHistLBP], 0
 					call convert_vga_scale
@@ -548,6 +548,159 @@ draw_original_image:
 			pop cx
 			loop line_loop                  ; Continuar lendo do arquivo
 		ret
+draw_lbp_image:
+		call open_file
+		call file_read_line ; load line buffer
+		mov dx, buffer_line ; origin
+		mov bx, buffer_line_1 ; destiny
+		call copy_buffer
+		call file_read_line ; load line buffer
+		mov dx, buffer_line ; origin
+		mov bx, buffer_line_2 ; destiny
+		call copy_buffer
+		call file_read_line ; load line buffer
+		mov dx, buffer_line ; origin
+		mov bx, buffer_line_3 ; destiny
+		call copy_buffer
+		mov 	cx, 247           ; line's amount
+		
+		
+		
+		line_loop_lbp:
+			mov dx, cx
+			add dx, 200; fixing screen position
+			push cx
+			
+			
+			mov cx, 250; line's pixels lenght
+				draw_pixels_lbp:
+					mov bx, 250
+					sub bx, cx
+					;access each position and create a new value
+					;main bit
+					call create_lbp_number
+					
+					mov byte[isHistLBP], 1
+					call convert_vga_scale
+					;plot pixel
+						mov 	bx, 596
+						sub 	bx, cx
+						push 	bx
+						push 	dx  
+						call plot_xy
+					loop draw_pixels_lbp               ; Repetir até copiar todos os bytes do buffer			
+			pop cx
+			mov dx, buffer_line_2 ; origin
+			mov bx, buffer_line_1 ; destiny
+			call copy_buffer
+			mov dx, buffer_line_3 ; origin
+			mov bx, buffer_line_2 ; destiny
+			call copy_buffer
+			call file_read_line
+			mov dx, buffer_line ; origin
+			mov bx, buffer_line_3 ; destiny
+			call copy_buffer
+			loop line_loop_lbp                  ; Continuar lendo do arquivo
+		ret
+create_lbp_number:
+	;push all
+		pushf
+		push ax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+		push bp
+	;function body
+		mov al, 00000000b
+		mov cl, byte[buffer_line_2 + bx + 1] ; bit central
+		
+		mov dl, byte[buffer_line_1 + bx] ; 1st bit
+		cmp dl, cl
+		jb verify_2nd_bit
+		xor al, 10000000b
+		verify_2nd_bit:
+		mov dl, byte[buffer_line_1 + bx + 1] ; 2nd bit
+		cmp dl, cl
+		jb verify_3rd_bit
+		xor al, 01000000b
+		verify_3rd_bit:
+		mov dl, byte[buffer_line_1 + bx + 2] ; 3rd bit
+		cmp dl, cl
+		jb verify_4th_bit
+		xor al, 00100000b
+		verify_4th_bit:
+		mov dl, byte[buffer_line_2 + bx + 2] ; 4th bit
+		cmp dl, cl
+		jb verify_5th_bit
+		xor al, 00010000b
+		verify_5th_bit:
+		mov dl, byte[buffer_line_3 + bx + 2] ; 5th bit
+		cmp dl, cl
+		jb verify_6th_bit
+		xor al, 00001000b
+		verify_6th_bit:
+		mov dl, byte[buffer_line_3 + bx + 1] ; 6th bit
+		cmp dl, cl
+		jb verify_7th_bit
+		xor al, 00000100b
+		verify_7th_bit:
+		mov dl, byte[buffer_line_3 + bx] ; 7th bit
+		cmp dl, cl
+		jb verify_8th_bit
+		xor al, 00000010b
+		verify_8th_bit:
+		mov dl, byte[buffer_line_2 + bx] ; 8nd bit
+		cmp dl, cl
+		jb convert_bin_to_int
+		xor al, 00000001b
+		convert_bin_to_int:
+		sub al, 30h
+		mov byte[buffer_byte], al	
+	;pop all
+		pop	bp
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		popf
+		ret	
+
+copy_buffer:
+	;push all
+		pushf
+		push ax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+		push bp
+	;function body
+		mov cx, 250
+		mov di, 0
+		map_vector:
+			push bx
+			mov bx, dx
+			mov al, byte[bx + di]
+			pop bx
+			mov byte[bx + di], al
+			add di, 1
+			loop map_vector
+	;pop all
+		pop	bp
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		popf
+		ret	
+
 
 draw_image_hist:
 	;push all
@@ -675,7 +828,7 @@ file_read_line:
 				mov bx, 249
 				sub bx, cx
 				mov al, byte[buffer_byte]
-				mov [buffer_line_1 + bx], al
+				mov [buffer_line + bx], al
 			loop line_loop_buffer
 	;pop all
 		pop	bp
@@ -1442,7 +1595,10 @@ footer_string       db      'Lucas Manfioletti turma 6.1',0, 'Sistemas Embarcado
 
 buffer_byte db 0
 buffer_pixel times  4  db 0
+buffer_line times 250 db 0
 buffer_line_1 times 250 db 0
+buffer_line_2 times 250 db 0
+buffer_line_3 times 250 db 0
 pixel_size_byte	db	0
 file_name		db		"imagem.txt", 0
 file_handle		dw	0
