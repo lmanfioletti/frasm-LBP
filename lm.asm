@@ -28,13 +28,7 @@ start_mouse:
 	int 33h 
 	jmp click_check
 
-consolTest:
-	mov dx,consolTestmsg ; exibe um erro
-	mov ah,09h      ; usando a função 09h
-	int 21h         ; chama serviço do DOS
-	mov ax,4C02h        ; termina programa com um errorlevel =2
-	int 21h
-	jmp exit_program
+
 
 click_check:
 	mov ax,5              
@@ -110,12 +104,17 @@ Hist_button_select:
 	call reset_layout_base_buttons 
 	mov		byte[cor],amarelo
 	call draw_layout_base_default_Hist_button
+	call draw_layout_base_default_Hist
+	mov bx, bufferHistImg
 	call draw_image_hist 
 	ret
 HistLBP_button_select:
 	call reset_layout_base_buttons 
 	mov		byte[cor],amarelo
-	call draw_layout_base_default_HistLBP_button 
+	call draw_layout_base_default_HistLBP_button
+	call draw_layout_base_default_Hist
+	mov bx, bufferHistImgLBP
+	call draw_image_hist  
 	ret
 exit_button_select:
 	call reset_layout_base_buttons 
@@ -463,6 +462,53 @@ draw_layout_base_default_footer:
     		mov     	dl,3			;coluna 0-79
 			call 	print_string
 	ret
+draw_layout_base_default_Hist:
+	;push all
+		pushf
+		push ax
+		push bx
+		push cx
+		push dx
+		push si
+		push di
+		push bp
+	;function body
+		mov cx, 16
+		mov dx, 346
+		mov byte[cor], preto
+		hist_loop_image_default:
+			;plot pixel
+				push cx
+				mov cx, 16
+				repeat_lines_to_large_hist_default:
+					push bx
+					mov		ax, dx
+					push		ax
+					mov		ax, 19
+					push		ax
+					mov		ax, dx
+					push		ax
+
+					mov		ah, 0
+					mov al, 160
+					add ax, 19
+					push		ax
+					call		line
+					add dx, 1
+					pop bx  
+					loop repeat_lines_to_large_hist_default
+				pop cx
+			loop hist_loop_image_default
+	;pop all
+		pop	bp
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		popf
+		ret
 
 ErrorOpening:
 	mov dx, OpenError ; exibe um erro
@@ -564,22 +610,17 @@ draw_lbp_image:
 		call copy_buffer
 		mov 	cx, 247           ; line's amount
 		
-		
-		
 		line_loop_lbp:
 			mov dx, cx
 			add dx, 200; fixing screen position
 			push cx
-			
-			
+
 			mov cx, 250; line's pixels lenght
 				draw_pixels_lbp:
 					mov bx, 250
 					sub bx, cx
 					;access each position and create a new value
-					;main bit
 					call create_lbp_number
-					
 					mov byte[isHistLBP], 1
 					call convert_vga_scale
 					;plot pixel
@@ -702,6 +743,13 @@ copy_buffer:
 		ret	
 
 
+consolTest:
+	mov dx,consolTestmsg ; exibe um erro
+	mov ah,09h      ; usando a função 09h
+	int 21h         ; chama serviço do DOS
+	mov ax,4C02h        ; termina programa com um errorlevel =2
+	int 21h
+	jmp exit_program
 draw_image_hist:
 	;push all
 		pushf
@@ -713,7 +761,6 @@ draw_image_hist:
 		push di
 		push bp
 	;function body
-		mov bx, bufferHistImg
 		mov cx, 16
 		mov dx, 346
 		mov si, 0
@@ -721,31 +768,33 @@ draw_image_hist:
 			mov al, byte[fixed_scale_vector + si] 
 			mov byte[cor], al
 			;plot pixel
-				;push bx
 				push cx
-
 				mov cx, 16
 				repeat_lines_to_large_hist:
 					push bx
 					mov		ax, dx
 					push		ax
-					mov		ax,19
+					mov		ax, 19
 					push		ax
 					mov		ax, dx
 					push		ax
-					mov ax, word[bx]
+
+					mov		ah, 0
+					mov al, byte[bx]
 					mov bh, 0
-					mov bl, 4
+					mov bl, 16
 					div bl
 					mov		ah, 0
+					
 					add ax, 19
 					push		ax
 					call		line
 					add dx, 1
+					;cmp bx, 30
+					;je consolTest
 					pop bx  
 					loop repeat_lines_to_large_hist
 				pop cx
-				;pop bx
 				add bx, 2
 				inc si
 			loop hist_loop_image
@@ -900,7 +949,7 @@ close_file:
 		jmp back_inc_hist_img
 
 	inc_hist_img_LBP:
-		add word[bufferHistImgLBP + bx], 1
+		add byte[bufferHistImgLBP + bx], 1
 		jmp back_inc_hist_img	
 
 ;convert to vga scale
@@ -1595,6 +1644,7 @@ footer_string       db      'Lucas Manfioletti turma 6.1',0, 'Sistemas Embarcado
 
 buffer_byte db 0
 buffer_pixel times  4  db 0
+buffer_hist_word dw 0
 buffer_line times 250 db 0
 buffer_line_1 times 250 db 0
 buffer_line_2 times 250 db 0
@@ -1607,8 +1657,8 @@ ReadError DB "Ocorreu um erro(lendo)!$"
 consolTestmsg DB "Follow from here!$"
 
 isHistLBP db 0
-bufferHistImg times 16 dw 0
-bufferHistImgLBP times 16 dw 0
+bufferHistImg times 16 dw 0000
+bufferHistImgLBP times 16 dw 0000
 ;*************************************************************************
 segment stack stack
     		resb 		512
