@@ -788,13 +788,7 @@ segment code
 		popf
 		ret	
 
-consolTest:
-	mov dx,consolTestmsg ; exibe um erro
-	mov ah,09h      ; usando a função 09h
-	int 21h         ; chama serviço do DOS
-	mov ax,4C02h        ; termina programa com um errorlevel =2
-	int 21h
-	jmp exit_program
+
 
 ;_____________________________________________________________________________
 ;
@@ -845,8 +839,6 @@ consolTest:
 					push		ax
 					call		line
 					add dx, 1
-					;cmp bx, 30
-					;je consolTest
 					pop bx  
 					loop repeat_lines_to_large_hist
 				pop cx
@@ -1499,7 +1491,6 @@ file_name		db		"imagem.txt", 0
 file_handle		dw	0
 OpenError DB "Ocorreu um erro(abrindo)!$"
 ReadError DB "Ocorreu um erro(lendo)!$"
-consolTestmsg DB "Follow from here!$"
 
 isHistLBP db 0
 bufferHistImg times 16 dw 0000
