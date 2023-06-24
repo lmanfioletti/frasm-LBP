@@ -9,565 +9,591 @@ segment code
     		mov 		ss,ax
     		mov 		sp,stacktop
 
-; salvar modo corrente de video(vendo como est� o modo de video da maquina)
+; save correct video mode (seeing how the machine's video mode is
             mov  		ah,0Fh
     		int  		10h
     		mov  		[modo_anterior],al   
 
-; alterar modo de video para gr�fico 640x480 16 cores
+; change video mode to graphic 640x480 16 colors
     	mov     	al,12h
    		mov     	ah,0
     	int     	10h
 
 		call draw_layout_base_default
 		jmp start_mouse
-start_mouse:
-	mov ax,0
-	int 33h
-	mov ax,1
-	int 33h 
-	jmp click_check
+;_____________________________________________________________________________
+;
+;   Mouse click functions
+;
+;-->
+	; this function start mouse
+	start_mouse:
+		mov ax,0
+		int 33h
+		mov ax,1
+		int 33h 
+		jmp click_check
 
+	;_____________________________________________________________________________
+	; this function check if mouse click is on range from buttons on UI and call choose_click if this is true
+	click_check:
+		mov ax,5              
+		mov bx,0
+		int 33h               
+		cmp bx,0              
+		je click_check ; if don't have click on screen -> bx = 0
+		cmp dx, 14
+		jb click_check ; if y < 14 is false
+		cmp dx, 64
+		jnb click_check ; if y > 64 is false
+		call choose_click
+		jmp click_check
 
-
-click_check:
-	mov ax,5              
-	mov bx,0
-	int 33h               
-	cmp bx,0              
-	je click_check ; if don't have click on screen -> bx = 0
-	cmp dx, 14
-	jb click_check ; if y < 14 is false
-	cmp dx, 64
-	jnb click_check ; if y > 64 is false
-	call choose_click
-	jmp click_check
-
-choose_click:
-	;check open button
-		cmp cx, 19
-		jb click_check
-		cmp cx, 69
-		jnb check_LBP_button
-		call open_button_select
+	;_____________________________________________________________________________
+	; this function finds out which button was clicked on click check and call respectve button select function	
+	choose_click:
+		;check open button
+			cmp cx, 19
+			jb click_check
+			cmp cx, 69
+			jnb check_LBP_button
+			call open_button_select
+			ret
+		;check LBP button
+		check_LBP_button:
+			cmp cx, 74
+			jb click_check
+			cmp cx, 124
+			jnb check_Hist_button
+			call LBP_button_select
+			ret
 		ret
-	;check LBP button
-	check_LBP_button:
-		cmp cx, 74
-		jb click_check
-		cmp cx, 124
-		jnb check_Hist_button
-		call LBP_button_select
+		;check Hist button
+		check_Hist_button:
+			cmp cx, 129
+			jb click_check
+			cmp cx, 179
+			jnb check_HistLBP_button
+			call Hist_button_select
+			ret
 		ret
-	ret
-	;check Hist button
-	check_Hist_button:
-		cmp cx, 129
-		jb click_check
-		cmp cx, 179
-		jnb check_HistLBP_button
-		call Hist_button_select
+		;check HistLBP button
+		check_HistLBP_button:
+			cmp cx, 184
+			jb click_check
+			cmp cx, 234
+			jnb check_exit_button
+			call HistLBP_button_select
+			ret
 		ret
-	ret
-	;check HistLBP button
-	check_HistLBP_button:
-		cmp cx, 184
-		jb click_check
-		cmp cx, 234
-		jnb check_exit_button
-		call HistLBP_button_select
+		;check exit button
+		check_exit_button:
+			cmp cx, 239
+			jb click_check
+			cmp cx, 289
+			jnb click_check
+			call exit_button_select
+			ret
 		ret
-	ret
-	;check exit button
-	check_exit_button:
-		cmp cx, 239
-		jb click_check
-		cmp cx, 289
-		jnb click_check
-		call exit_button_select
+;_____________________________________________________________________________
+;
+;   Buttons to call to your functions
+;
+;-->
+	; this function call function to draw original image and change button color to yellow
+	open_button_select:
+		call reset_layout_base_buttons 
+		mov		byte[cor],amarelo
+		call draw_layout_base_default_open_button
+		call draw_original_image 
 		ret
-	ret
+	;_____________________________________________________________________________
+	; this function call function to draw lbp image and change button color to yellow
+	LBP_button_select:
+		call reset_layout_base_buttons 
+		mov		byte[cor],amarelo
+		call draw_layout_base_default_LBP_button
+		call draw_lbp_image 
+		ret
+	;_____________________________________________________________________________
+	; this function call function to draw Histogram from original image and change button color to yellow
+	Hist_button_select:
+		call reset_layout_base_buttons 
+		mov		byte[cor],amarelo
+		call draw_layout_base_default_Hist_button
+		call draw_layout_base_default_Hist
+		mov bx, bufferHistImg
+		call draw_image_hist 
+		ret
+	;_____________________________________________________________________________
+	; this function call function to open Histogram from LBP image and change button color to yellow
+	HistLBP_button_select:
+		call reset_layout_base_buttons 
+		mov		byte[cor],amarelo
+		call draw_layout_base_default_HistLBP_button
+		call draw_layout_base_default_Hist
+		mov bx, bufferHistImgLBP
+		call draw_image_hist  
+		ret
+	;_____________________________________________________________________________
+	; this function call function to exit program image and change button color to yellow
+	exit_button_select:
+		call reset_layout_base_buttons 
+		mov		byte[cor],amarelo
+		call draw_layout_base_default_exit_button 
+		jmp exit_program
+		ret
 
-open_button_select:
-	call reset_layout_base_buttons 
-	mov		byte[cor],amarelo
-	call draw_layout_base_default_open_button
-	call draw_original_image 
-	ret
-LBP_button_select:
-	call reset_layout_base_buttons 
-	mov		byte[cor],amarelo
-	call draw_layout_base_default_LBP_button
-	call draw_lbp_image 
-	ret
-Hist_button_select:
-	call reset_layout_base_buttons 
-	mov		byte[cor],amarelo
-	call draw_layout_base_default_Hist_button
-	call draw_layout_base_default_Hist
-	mov bx, bufferHistImg
-	call draw_image_hist 
-	ret
-HistLBP_button_select:
-	call reset_layout_base_buttons 
-	mov		byte[cor],amarelo
-	call draw_layout_base_default_HistLBP_button
-	call draw_layout_base_default_Hist
-	mov bx, bufferHistImgLBP
-	call draw_image_hist  
-	ret
-exit_button_select:
-	call reset_layout_base_buttons 
-	mov		byte[cor],amarelo
-	call draw_layout_base_default_exit_button 
-	jmp exit_program
-	ret
-
-reset_layout_base_buttons:
-	mov		byte[cor],branco_intenso 
-	call draw_layout_base_default_open_button
-	call draw_layout_base_default_LBP_button
-	call draw_layout_base_default_Hist_button
-	call draw_layout_base_default_HistLBP_button
-	call draw_layout_base_default_exit_button
-	ret
-
-draw_layout_base_default:
-	mov		byte[cor],branco_intenso 
-	call draw_layout_base_default_global_border
-	call draw_layout_base_default_open_button
-	call draw_layout_base_default_LBP_button
-	call draw_layout_base_default_Hist_button
-	call draw_layout_base_default_HistLBP_button
-	call draw_layout_base_default_exit_button
-	call draw_layout_base_default_footer
-	ret
-
-draw_layout_base_default_global_border:
-	;bottom
-		mov		ax,0
-		push		ax
-		mov		ax,0
-		push		ax
-		mov		ax,639
-		push		ax
-		mov		ax,0
-		push		ax
-		call		line
-	;right
-		mov		ax,639
-		push		ax
-		mov		ax,0
-		push		ax
-		mov		ax,639
-		push		ax
-		mov		ax,479
-		push		ax
-		call		line
-	;top
-		mov		ax,639
-		push		ax
-		mov		ax,479
-		push		ax
-		mov		ax,0
-		push		ax
-		mov		ax,479
-		push		ax
-		call		line
-	;left
-		mov		ax,0
-		push		ax
-		mov		ax,479
-		push		ax
-		mov		ax,0
-		push		ax
-		mov		ax,0
-		push		ax
-		call		line
-	ret
-draw_layout_base_default_open_button:
-	;border
-		;top
-			mov		ax,19 ;19px
+;_____________________________________________________________________________
+;
+;   UI layout functions
+;
+;-->
+	; this function call another buttons base with default color to reset UI buttons
+	reset_layout_base_buttons:
+		mov		byte[cor],branco_intenso 
+		call draw_layout_base_default_open_button
+		call draw_layout_base_default_LBP_button
+		call draw_layout_base_default_Hist_button
+		call draw_layout_base_default_HistLBP_button
+		call draw_layout_base_default_exit_button
+		ret
+	;_____________________________________________________________________________
+	; this function call another base function with default color to reset UI
+	draw_layout_base_default:
+		mov		byte[cor],branco_intenso 
+		call draw_layout_base_default_global_border
+		call draw_layout_base_default_open_button
+		call draw_layout_base_default_LBP_button
+		call draw_layout_base_default_Hist_button
+		call draw_layout_base_default_HistLBP_button
+		call draw_layout_base_default_exit_button
+		call draw_layout_base_default_footer
+		ret
+	;_____________________________________________________________________________
+	; this function draw global UI border
+	draw_layout_base_default_global_border:
+		;bottom
+			mov		ax,0
 			push		ax
-			mov		ax,464 ;464px
+			mov		ax,0
 			push		ax
-			mov		ax,69
+			mov		ax,639
 			push		ax
-			mov		ax,464
+			mov		ax,0
 			push		ax
 			call		line
 		;right
-			mov		ax,69
+			mov		ax,639
 			push		ax
-			mov		ax,464
+			mov		ax,0
 			push		ax
-			mov		ax,69
+			mov		ax,639
 			push		ax
-			mov		ax, 414
-			push		ax
-			call		line
-		;bottom
-			mov		ax,69
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,19
-			push		ax
-			mov		ax,414
+			mov		ax,479
 			push		ax
 			call		line
-		;left
-			mov		ax,19
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,19
-			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-	;text
-    	mov     	dh,2			;linha 0-29
-    	mov     	dl,3			;coluna 0-79
-		lea bx, [btn_string_open]
-		call 	print_string
-	ret
-draw_layout_base_default_LBP_button:
-	;border
 		;top
-			mov		ax,74 
+			mov		ax,639
 			push		ax
-			mov		ax,464
+			mov		ax,479
 			push		ax
-			mov		ax,124
+			mov		ax,0
 			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-		;right
-			mov		ax,124
-			push		ax
-			mov		ax,464
-			push		ax
-			mov		ax,124
-			push		ax
-			mov		ax, 414
-			push		ax
-			call		line
-		;bottom
-			mov		ax,124
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,74
-			push		ax
-			mov		ax,414
+			mov		ax,479
 			push		ax
 			call		line
 		;left
-			mov		ax,74
+			mov		ax,0
 			push		ax
-			mov		ax,414
+			mov		ax,479
 			push		ax
-			mov		ax,74
+			mov		ax,0
 			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-	;text
-		mov     	dh,2			;linha 0-29
-		mov     	dl,10			;coluna 0-79
-		lea bx, [btn_string_LBP]
-		call 	print_string
-	ret
-
-draw_layout_base_default_Hist_button:
-	;border
-		;top
-			mov		ax,129 
-			push		ax
-			mov		ax,464
-			push		ax
-			mov		ax,179
-			push		ax
-			mov		ax,464
+			mov		ax,0
 			push		ax
 			call		line
-		;right
-			mov		ax,179
-			push		ax
-			mov		ax,464
-			push		ax
-			mov		ax,179
-			push		ax
-			mov		ax, 414
-			push		ax
-			call		line
-		;bottom
-			mov		ax,179
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,129
-			push		ax
-			mov		ax,414
-			push		ax
-			call		line
-		;left
-			mov		ax,129
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,129
-			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-	;text
-    	mov     	dh,2			;linha 0-29
-    	mov     	dl,17			;coluna 0-79
-		lea bx, [btn_string_Hist]
-		call 	print_string
-	ret
-draw_layout_base_default_HistLBP_button:
-	;border
-		;top
-			mov		ax,184 
-			push		ax
-			mov		ax,464
-			push		ax
-			mov		ax,234
-			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-		;right
-			mov		ax,234
-			push		ax
-			mov		ax,464
-			push		ax
-			mov		ax,234
-			push		ax
-			mov		ax, 414
-			push		ax
-			call		line
-		;bottom
-			mov		ax,234
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,184
-			push		ax
-			mov		ax,414
-			push		ax
-			call		line
-		;left
-			mov		ax,184
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,184
-			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-	;text
-    	mov     	dh,1			;linha 0-29
-    	mov     	dl,24			;coluna 0-79
-		lea bx, [btn_string_HistLBP]
-		call 	print_string
-		mov     	dh,2			;linha 0-29
-    	mov     	dl,24			;coluna 0-79
-		inc		bx
-		call 	print_string
-	ret
-draw_layout_base_default_exit_button:
-	;border
-		;top
-			mov		ax,239 
-			push		ax
-			mov		ax,464
-			push		ax
-			mov		ax,289
-			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-		;right
-			mov		ax,289
-			push		ax
-			mov		ax,464
-			push		ax
-			mov		ax,289
-			push		ax
-			mov		ax, 414
-			push		ax
-			call		line
-		;bottom
-			mov		ax,289
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,239
-			push		ax
-			mov		ax,414
-			push		ax
-			call		line
-		;left
-			mov		ax,239
-			push		ax
-			mov		ax,414
-			push		ax
-			mov		ax,239
-			push		ax
-			mov		ax,464
-			push		ax
-			call		line
-	;text
-    	mov     	dh,2			;linha 0-29
-    	mov     	dl,31			;coluna 0-79
-		lea bx, [btn_string_exit]
-		call 	print_string
-	ret
-draw_layout_base_default_footer:
+		ret
+	;_____________________________________________________________________________
+	; this function draw open button
+	draw_layout_base_default_open_button:
 		;border
 			;top
-				mov		ax,19 
+				mov		ax,19 ;19px
+				push		ax
+				mov		ax,464 ;464px
 				push		ax
 				mov		ax,69
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+			;right
+				mov		ax,69
+				push		ax
+				mov		ax,464
+				push		ax
+				mov		ax,69
+				push		ax
+				mov		ax, 414
+				push		ax
+				call		line
+			;bottom
+				mov		ax,69
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,19
+				push		ax
+				mov		ax,414
+				push		ax
+				call		line
+			;left
+				mov		ax,19
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,19
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+		;text
+			mov     	dh,2			;linha 0-29
+			mov     	dl,3			;coluna 0-79
+			lea bx, [btn_string_open]
+			call 	print_string
+		ret
+	;_____________________________________________________________________________
+	; this function draw LBP button
+	draw_layout_base_default_LBP_button:
+		;border
+			;top
+				mov		ax,74 
+				push		ax
+				mov		ax,464
+				push		ax
+				mov		ax,124
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+			;right
+				mov		ax,124
+				push		ax
+				mov		ax,464
+				push		ax
+				mov		ax,124
+				push		ax
+				mov		ax, 414
+				push		ax
+				call		line
+			;bottom
+				mov		ax,124
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,74
+				push		ax
+				mov		ax,414
+				push		ax
+				call		line
+			;left
+				mov		ax,74
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,74
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+		;text
+			mov     	dh,2			;linha 0-29
+			mov     	dl,10			;coluna 0-79
+			lea bx, [btn_string_LBP]
+			call 	print_string
+		ret
+	;_____________________________________________________________________________
+	; this function draw Hist button
+	draw_layout_base_default_Hist_button:
+		;border
+			;top
+				mov		ax,129 
+				push		ax
+				mov		ax,464
+				push		ax
+				mov		ax,179
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+			;right
+				mov		ax,179
+				push		ax
+				mov		ax,464
+				push		ax
+				mov		ax,179
+				push		ax
+				mov		ax, 414
+				push		ax
+				call		line
+			;bottom
+				mov		ax,179
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,129
+				push		ax
+				mov		ax,414
+				push		ax
+				call		line
+			;left
+				mov		ax,129
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,129
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+		;text
+			mov     	dh,2			;linha 0-29
+			mov     	dl,17			;coluna 0-79
+			lea bx, [btn_string_Hist]
+			call 	print_string
+		ret
+	;_____________________________________________________________________________
+	; this function draw Hist LBP button
+	draw_layout_base_default_HistLBP_button:
+		;border
+			;top
+				mov		ax,184 
+				push		ax
+				mov		ax,464
+				push		ax
+				mov		ax,234
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+			;right
+				mov		ax,234
+				push		ax
+				mov		ax,464
+				push		ax
+				mov		ax,234
+				push		ax
+				mov		ax, 414
+				push		ax
+				call		line
+			;bottom
+				mov		ax,234
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,184
+				push		ax
+				mov		ax,414
+				push		ax
+				call		line
+			;left
+				mov		ax,184
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,184
+				push		ax
+				mov		ax,464
+				push		ax
+				call		line
+		;text
+			mov     	dh,1			;linha 0-29
+			mov     	dl,24			;coluna 0-79
+			lea bx, [btn_string_HistLBP]
+			call 	print_string
+			mov     	dh,2			;linha 0-29
+			mov     	dl,24			;coluna 0-79
+			inc		bx
+			call 	print_string
+		ret
+	;_____________________________________________________________________________
+	; this function draw exit button
+	draw_layout_base_default_exit_button:
+		;border
+			;top
+				mov		ax,239 
+				push		ax
+				mov		ax,464
 				push		ax
 				mov		ax,289
 				push		ax
-				mov		ax,69
+				mov		ax,464
 				push		ax
 				call		line
 			;right
 				mov		ax,289
 				push		ax
-				mov		ax,69
+				mov		ax,464
 				push		ax
 				mov		ax,289
 				push		ax
-				mov		ax,19
+				mov		ax, 414
+				push		ax
+				call		line
+			;bottom
+				mov		ax,289
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,239
+				push		ax
+				mov		ax,414
+				push		ax
+				call		line
+			;left
+				mov		ax,239
+				push		ax
+				mov		ax,414
+				push		ax
+				mov		ax,239
+				push		ax
+				mov		ax,464
 				push		ax
 				call		line
 		;text
-    		mov     	dh,26			;linha 0-29
-    		mov     	dl,3			;coluna 0-79
-			lea bx, [footer_string]
+			mov     	dh,2			;linha 0-29
+			mov     	dl,31			;coluna 0-79
+			lea bx, [btn_string_exit]
 			call 	print_string
-			inc		bx
-			mov     	dh,27			;linha 0-29
-    		mov     	dl,3			;coluna 0-79
-			call 	print_string
-	ret
-draw_layout_base_default_Hist:
-	;push all
-		pushf
-		push ax
-		push bx
-		push cx
-		push dx
-		push si
-		push di
-		push bp
-	;function body
-		mov cx, 16
-		mov dx, 346
-		mov byte[cor], preto
-		hist_loop_image_default:
-			;plot pixel
-				push cx
-				mov cx, 16
-				repeat_lines_to_large_hist_default:
-					push bx
-					mov		ax, dx
+		ret
+	;_____________________________________________________________________________
+	; this function draw footer
+	draw_layout_base_default_footer:
+			;border
+				;top
+					mov		ax,19 
 					push		ax
-					mov		ax, 19
+					mov		ax,69
 					push		ax
-					mov		ax, dx
+					mov		ax,289
 					push		ax
-
-					mov		ah, 0
-					mov al, 160
-					add ax, 19
+					mov		ax,69
 					push		ax
 					call		line
-					add dx, 1
-					pop bx  
-					loop repeat_lines_to_large_hist_default
-				pop cx
-			loop hist_loop_image_default
-	;pop all
-		pop	bp
-		pop	di
-		pop	si
-		pop	dx
-		pop	cx
-		pop	bx
-		pop	ax
-		popf
+				;right
+					mov		ax,289
+					push		ax
+					mov		ax,69
+					push		ax
+					mov		ax,289
+					push		ax
+					mov		ax,19
+					push		ax
+					call		line
+			;text
+				mov     	dh,26			;linha 0-29
+				mov     	dl,3			;coluna 0-79
+				lea bx, [footer_string]
+				call 	print_string
+				inc		bx
+				mov     	dh,27			;linha 0-29
+				mov     	dl,3			;coluna 0-79
+				call 	print_string
 		ret
+	;_____________________________________________________________________________
+	; this function erase hist slot to black
+	draw_layout_base_default_Hist:
+		;push all
+			pushf
+			push ax
+			push bx
+			push cx
+			push dx
+			push si
+			push di
+			push bp
+		;function body
+			mov cx, 16
+			mov dx, 346
+			mov byte[cor], preto
+			hist_loop_image_default:
+				;plot pixel
+					push cx
+					mov cx, 16
+					repeat_lines_to_large_hist_default:
+						push bx
+						mov		ax, dx
+						push		ax
+						mov		ax, 19
+						push		ax
+						mov		ax, dx
+						push		ax
 
-ErrorOpening:
-	mov dx, OpenError ; exibe um erro
-	mov ah,09h      ; usando a função 09h
-	int 21h         ; chama serviço do DOS
-	mov ax,4C01h        ; termina programa com um errorlevel =1 
-	int 21h
-	jmp exit_program
+						mov		ah, 0
+						mov al, 160
+						add ax, 19
+						push		ax
+						call		line
+						add dx, 1
+						pop bx  
+						loop repeat_lines_to_large_hist_default
+					pop cx
+				loop hist_loop_image_default
+		;pop all
+			pop	bp
+			pop	di
+			pop	si
+			pop	dx
+			pop	cx
+			pop	bx
+			pop	ax
+			popf
+			ret
 
-exit_program:
+
+;_____________________________________________________________________________
+;
+;   function to exit program
+;
+;-->
+	exit_program:
 	mov    	ah,08h
 	int     21h
 	mov  	ah,0   			; set video mode
-	mov  	al,[modo_anterior]   	; modo anterior
+	mov  	al,[modo_anterior]   	; before mode
 	int  	10h
 	mov     ax,4c00h
 	int     21h
 
-print_string:	
-	call	cursor
-	mov     al,[bx]
-	cmp 	al, 0       ; verifica se é o caractere nulo
-	call	caracter
-	inc     bx			;proximo caracter
-	inc		dl			;avanca a coluna
-	mov     al,[bx]
-	cmp 	al, 0       ; verifica se é o caractere nulo
-	jne		print_string
-	ret
+;_____________________________________________________________________________
+;
+;   function to print screen on UI
+;
+; 	the user give string to pirnt on bx, and collum on dl and line on dh
+;-->
+	print_string:	
+		call	cursor
+		mov     al,[bx]
+		cmp 	al, 0       ; verify if the caracter is null
+		call	caracter
+		inc     bx			;next caracter
+		inc		dl			;next columm
+		mov     al,[bx]
+		cmp 	al, 0       ; verify if the caracter is null
+		jne		print_string
+		ret
 
-open_file:
-	;push all
-		pushf
-		push ax
-		push bx
-		push cx
-		push dx
-		push si
-		push di
-		push bp
-	;function body
-		mov 	ah, 3Dh                   
-		mov 	al, 0                     
-		mov 	dx, file_name             
-		int 	21h        
-		jc ErrorOpening     ; jmp if flag is on - error!              
-		mov		[file_handle], ax
-	;pop all
-		pop	bp
-		pop	di
-		pop	si
-		pop	dx
-		pop	cx
-		pop	bx
-		pop	ax
-		popf
-		ret	
 
-draw_original_image:
+;_____________________________________________________________________________
+;
+;   function to draw original image on UI
+;
+; this function open the file and read line by line with file_read_line
+; and plot pixel by pixel on screen after convertion to VGA scale convert_vga_scale
+;-->
+	draw_original_image:
 		call open_file
 		mov 	cx, 250           ; line's amount
 		line_loop:
@@ -594,7 +620,15 @@ draw_original_image:
 			pop cx
 			loop line_loop                  ; Continuar lendo do arquivo
 		ret
-draw_lbp_image:
+;_____________________________________________________________________________
+;
+;   function to draw lbp image on UI
+;
+; this function open the file and take 3 buffers for each line.
+; with buffers, create_lbp_number is called and a pixel from the new value
+; from the pixel is ploted
+;-->
+	draw_lbp_image:
 		call open_file
 		call file_read_line ; load line buffer
 		mov dx, buffer_line ; origin
@@ -643,7 +677,14 @@ draw_lbp_image:
 			call copy_buffer
 			loop line_loop_lbp                  ; Continuar lendo do arquivo
 		ret
-create_lbp_number:
+;_____________________________________________________________________________
+;
+;   function to create lbp number
+;
+; take the clustered pixels and make LBP algorithm. The new 
+; number is put back on [buffer_byte]   
+;-->
+	create_lbp_number:
 	;push all
 		pushf
 		push ax
@@ -656,7 +697,6 @@ create_lbp_number:
 	;function body
 		mov al, 00000000b
 		mov cl, byte[buffer_line_2 + bx + 1] ; bit central
-		
 		mov dl, byte[buffer_line_1 + bx] ; 1st bit
 		cmp dl, cl
 		jb verify_2nd_bit
@@ -709,8 +749,14 @@ create_lbp_number:
 		pop	ax
 		popf
 		ret	
-
-copy_buffer:
+;_____________________________________________________________________________
+;
+;   function to copy a buffer to another
+;
+; the user give the origin on dx, and destiny on bx. 
+; All content from dx is copyed to bx
+;-->
+	copy_buffer:
 	;push all
 		pushf
 		push ax
@@ -742,7 +788,6 @@ copy_buffer:
 		popf
 		ret	
 
-
 consolTest:
 	mov dx,consolTestmsg ; exibe um erro
 	mov ah,09h      ; usando a função 09h
@@ -750,7 +795,17 @@ consolTest:
 	mov ax,4C02h        ; termina programa com um errorlevel =2
 	int 21h
 	jmp exit_program
-draw_image_hist:
+
+;_____________________________________________________________________________
+;
+;   function draw histogram graphic from image or LBP image 
+;
+; take address buffer from that user give on bx
+; (can be image histogram or image LBP histogram)
+; and follow all positions color and display this information 
+; like a graphic
+;-->
+	draw_image_hist:
 	;push all
 		pushf
 		push ax
@@ -809,97 +864,146 @@ draw_image_hist:
 		popf
 		ret
 
-ErrorReading:
-	mov dx,ReadError ; exibe um erro
-	mov ah,09h      ; usando a função 09h
-	int 21h         ; chama serviço do DOS
-	mov ax,4C02h        ; termina programa com um errorlevel =2
-	int 21h
-	jmp exit_program
+;_____________________________________________________________________________
+;
+;   functions to read file and check error
+;
+;--> 
+	ErrorReading:
+		mov dx,ReadError ; show a error
+		mov ah,09h      
+		int 21h         
+		mov ax,4C02h        
+		int 21h
+		jmp exit_program
+	;_____________________________________________________________________________
+	; this function just read 1 byte from file and put this byte into buffer_byte
+	read_one_byte:
+		;push all
+			pushf
+			push ax
+			push bx
+			push cx
+			push dx
+			push si
+			push di
+			push bp
+		;function body
+			mov ah, 3Fh      
+			mov bx, [file_handle]                 
+			mov cx, 1
+			mov dx, buffer_byte
+			int 21h                     
+			jc ErrorReading     ; jmp if flag is on - error!  
+			cmp ax, 0
+			je close_file
+		;pop all
+			pop	bp
+			pop	di
+			pop	si
+			pop	dx
+			pop	cx
+			pop	bx
+			pop	ax
+			popf
+			ret	
+	;_____________________________________________________________________________
+	; this function call the function read_one_byte for all line, and
+	; convert pixel by pixel with convert_ascii_int, after convertion, 
+	; the pixels are storaged in a buffer from line ([buffer_line])
+	file_read_line:
+		;push all
+			pushf
+			push ax
+			push bx
+			push cx
+			push dx
+			push si
+			push di
+			push bp
+		; function body
+			mov cx, 250; pixels line amount
+			line_loop_buffer:
+				mov bx, 0
+				mov byte[pixel_size_byte], 0 ;used to know number size
+				next_byte:
+					call read_one_byte
+					mov al, byte[buffer_byte]
+					mov byte[buffer_pixel + bx], al
+					cmp al, 20h
+					je convert_ascii_int
+					inc bx
+					add byte[pixel_size_byte], 1
+					jmp next_byte
+				back_convert_ascii_int:
+					mov bx, 249
+					sub bx, cx
+					mov al, byte[buffer_byte]
+					mov [buffer_line + bx], al
+				loop line_loop_buffer
+		;pop all
+			pop	bp
+			pop	di
+			pop	si
+			pop	dx
+			pop	cx
+			pop	bx
+			pop	ax
+			popf
+			ret	
+;_____________________________________________________________________________
+;
+;   functions to open, close file and check error on open
+;
+;-->
+	open_file:
+		;push all
+			pushf
+			push ax
+			push bx
+			push cx
+			push dx
+			push si
+			push di
+			push bp
+		;function body
+			mov 	ah, 3Dh                   
+			mov 	al, 0                     
+			mov 	dx, file_name             
+			int 	21h        
+			jc ErrorOpening     ; jmp if flag is on - error!              
+			mov		[file_handle], ax
+		;pop all
+			pop	bp
+			pop	di
+			pop	si
+			pop	dx
+			pop	cx
+			pop	bx
+			pop	ax
+			popf
+			ret	
+	close_file:
+		mov ah, 3Eh                    ; 3Eh - close file
+		mov bx, [file_handle]                     
+		int 0x21                       
+		jmp click_check
+	ErrorOpening:
+		mov dx, OpenError ; show a error
+		mov ah,09h      
+		int 21h        
+		mov ax,4C01h       
+		int 21h
+		jmp exit_program
 
-read_one_byte:
-	;push all
-		pushf
-		push ax
-		push bx
-		push cx
-		push dx
-		push si
-		push di
-		push bp
-	;function body
-		mov ah, 3Fh      
-		mov bx, [file_handle]                 
-		mov cx, 1
-		mov dx, buffer_byte
-		int 21h                     
-		jc ErrorReading     ; jmp if flag is on - error!  
-		cmp ax, 0
-		je close_file
-	;pop all
-		pop	bp
-		pop	di
-		pop	si
-		pop	dx
-		pop	cx
-		pop	bx
-		pop	ax
-		popf
-		ret	
-
-
-
-file_read_line:
-	;push all
-		pushf
-		push ax
-		push bx
-		push cx
-		push dx
-		push si
-		push di
-		push bp
-	; function body
-		mov cx, 250; pixels line amount
-		line_loop_buffer:
-			mov bx, 0
-			mov byte[pixel_size_byte], 0 ;used to know number size
-			next_byte:
-				call read_one_byte
-				mov al, byte[buffer_byte]
-				mov byte[buffer_pixel + bx], al
-				cmp al, 20h
-				je convert_ascii_int
-				inc bx
-				add byte[pixel_size_byte], 1
-				jmp next_byte
-			back_convert_ascii_int:
-				mov bx, 249
-				sub bx, cx
-				mov al, byte[buffer_byte]
-				mov [buffer_line + bx], al
-			loop line_loop_buffer
-	;pop all
-		pop	bp
-		pop	di
-		pop	si
-		pop	dx
-		pop	cx
-		pop	bx
-		pop	ax
-		popf
-		ret	
-
-close_file:
-    ; Fechar o arquivo
-    mov ah, 3Eh                    ; Função 3Eh - Fechar arquivo
-    mov bx, [file_handle]                     ; Identificador de arquivo
-    int 0x21                       ; Chamar a interrupção 21h
-	jmp click_check
-
-
-
-;convert to int
+;_____________________________________________________________________________
+;
+;   function convert pixel number to byte number
+;
+; take buffer from pixel read([buffer_pixel]), and convert this to 
+; 1 byte number
+;-->
+	;check size number([pixel_size_byte]) and convert byte by byte to 1 byte buffer([buffer_byte])
 	convert_ascii_int:
 		cmp byte[pixel_size_byte], 0
 		je close_file
@@ -943,16 +1047,21 @@ close_file:
 		add byte[buffer_byte], al
 		jmp		back_convert_ascii_int
 
-;inc hist
-	inc_hist_img:
-		add byte[bufferHistImg + bx], 1
-		jmp back_inc_hist_img
+;_____________________________________________________________________________
+;
+;   function convert to vga scale
+;
+; take buffer from pixel converted to byte, 
+; and convert this to VGA scale diving by 16
+;-->
+	;inc hist
+		inc_hist_img:
+			add byte[bufferHistImg + bx], 1
+			jmp back_inc_hist_img
 
-	inc_hist_img_LBP:
-		add byte[bufferHistImgLBP + bx], 1
-		jmp back_inc_hist_img	
-
-;convert to vga scale
+		inc_hist_img_LBP:
+			add byte[bufferHistImgLBP + bx], 1
+			jmp back_inc_hist_img	
 	convert_vga_scale:
 		;push all
 			pushf
@@ -961,11 +1070,11 @@ close_file:
 			push dx
 			push bx
 		;function body
-			mov ax, 0          ; Zerar o registrador AX
-			mov bx, 0          ; Zerar o registrador BX
-			mov al, byte[buffer_byte]        ; Dividendo (valor a ser dividido)
-			mov bl, 16          ; Divisor
-			div bl             ; Divide AX pelo divisor (BL)
+			mov ax, 0          
+			mov bx, 0          
+			mov al, byte[buffer_byte]
+			mov bl, 16          
+			div bl            
 			push ax
 			mov bx, 0
 			mov bl, 2
@@ -1017,7 +1126,6 @@ close_file:
 			pop	ax
 			popf
 			ret	
-
 	;convert scales
 		scale0:
 			mov byte[cor], preto
@@ -1067,12 +1175,18 @@ close_file:
 		scale15:
 			mov byte[cor], branco_intenso
 			jmp back_color_change_on_covertion_scales
+;_____________________________________________________________________________
+;
+;
+;***************************************************************************
+;FUNCTIONS FROM LINEC.asm
 ;***************************************************************************
 ;
 ;   fun��o cursor
 ;
 ; dh = linha (0-29) e  dl=coluna  (0-79)
-cursor:
+;-->
+	cursor:
 		pushf
 		push 		ax
 		push 		bx
@@ -1099,7 +1213,8 @@ cursor:
 ;
 ; al= caracter a ser escrito
 ; cor definida na variavel cor
-caracter:
+;-->
+	caracter:
 		pushf
 		push 		ax
 		push 		bx
@@ -1128,7 +1243,8 @@ caracter:
 ;
 ; push x; push y; call plot_xy;  (x<639, y<479)
 ; cor definida na variavel cor
-plot_xy:
+;-->
+	plot_xy:
 		push		bp
 		mov		bp,sp
 		pushf
@@ -1154,439 +1270,169 @@ plot_xy:
 		popf
 		pop		bp
 		ret		4
-;_____________________________________________________________________________
-;    fun��o circle
-;	 push xc; push yc; push r; call circle;  (xc+r<639,yc+r<479)e(xc-r>0,yc-r>0)
-; cor definida na variavel cor
-circle:
-	push 	bp
-	mov	 	bp,sp
-	pushf                        ;coloca os flags na pilha
-	push 	ax
-	push 	bx
-	push	cx
-	push	dx
-	push	si
-	push	di
-	
-	mov		ax,[bp+8]    ; resgata xc
-	mov		bx,[bp+6]    ; resgata yc
-	mov		cx,[bp+4]    ; resgata r
-	
-	mov 	dx,bx	
-	add		dx,cx       ;ponto extremo superior
-	push    ax			
-	push	dx
-	call plot_xy
-	
-	mov		dx,bx
-	sub		dx,cx       ;ponto extremo inferior
-	push    ax			
-	push	dx
-	call plot_xy
-	
-	mov 	dx,ax	
-	add		dx,cx       ;ponto extremo direita
-	push    dx			
-	push	bx
-	call plot_xy
-	
-	mov		dx,ax
-	sub		dx,cx       ;ponto extremo esquerda
-	push    dx			
-	push	bx
-	call plot_xy
-		
-	mov		di,cx
-	sub		di,1	 ;di=r-1
-	mov		dx,0  	;dx ser� a vari�vel x. cx � a variavel y
-	
-;aqui em cima a l�gica foi invertida, 1-r => r-1
-;e as compara��es passaram a ser jl => jg, assim garante 
-;valores positivos para d
 
-stay:				;loop
-	mov		si,di
-	cmp		si,0
-	jg		inf       ;caso d for menor que 0, seleciona pixel superior (n�o  salta)
-	mov		si,dx		;o jl � importante porque trata-se de conta com sinal
-	sal		si,1		;multiplica por doi (shift arithmetic left)
-	add		si,3
-	add		di,si     ;nesse ponto d=d+2*dx+3
-	inc		dx		;incrementa dx
-	jmp		plotar
-inf:	
-	mov		si,dx
-	sub		si,cx  		;faz x - y (dx-cx), e salva em di 
-	sal		si,1
-	add		si,5
-	add		di,si		;nesse ponto d=d+2*(dx-cx)+5
-	inc		dx		;incrementa x (dx)
-	dec		cx		;decrementa y (cx)
-	
-plotar:	
-	mov		si,dx
-	add		si,ax
-	push    si			;coloca a abcisa x+xc na pilha
-	mov		si,cx
-	add		si,bx
-	push    si			;coloca a ordenada y+yc na pilha
-	call plot_xy		;toma conta do segundo octante
-	mov		si,ax
-	add		si,dx
-	push    si			;coloca a abcisa xc+x na pilha
-	mov		si,bx
-	sub		si,cx
-	push    si			;coloca a ordenada yc-y na pilha
-	call plot_xy		;toma conta do s�timo octante
-	mov		si,ax
-	add		si,cx
-	push    si			;coloca a abcisa xc+y na pilha
-	mov		si,bx
-	add		si,dx
-	push    si			;coloca a ordenada yc+x na pilha
-	call plot_xy		;toma conta do segundo octante
-	mov		si,ax
-	add		si,cx
-	push    si			;coloca a abcisa xc+y na pilha
-	mov		si,bx
-	sub		si,dx
-	push    si			;coloca a ordenada yc-x na pilha
-	call plot_xy		;toma conta do oitavo octante
-	mov		si,ax
-	sub		si,dx
-	push    si			;coloca a abcisa xc-x na pilha
-	mov		si,bx
-	add		si,cx
-	push    si			;coloca a ordenada yc+y na pilha
-	call plot_xy		;toma conta do terceiro octante
-	mov		si,ax
-	sub		si,dx
-	push    si			;coloca a abcisa xc-x na pilha
-	mov		si,bx
-	sub		si,cx
-	push    si			;coloca a ordenada yc-y na pilha
-	call plot_xy		;toma conta do sexto octante
-	mov		si,ax
-	sub		si,cx
-	push    si			;coloca a abcisa xc-y na pilha
-	mov		si,bx
-	sub		si,dx
-	push    si			;coloca a ordenada yc-x na pilha
-	call plot_xy		;toma conta do quinto octante
-	mov		si,ax
-	sub		si,cx
-	push    si			;coloca a abcisa xc-y na pilha
-	mov		si,bx
-	add		si,dx
-	push    si			;coloca a ordenada yc-x na pilha
-	call plot_xy		;toma conta do quarto octante
-	
-	cmp		cx,dx
-	jb		fim_circle  ;se cx (y) est� abaixo de dx (x), termina     
-	jmp		stay		;se cx (y) est� acima de dx (x), continua no loop
-	
-	
-fim_circle:
-	pop		di
-	pop		si
-	pop		dx
-	pop		cx
-	pop		bx
-	pop		ax
-	popf
-	pop		bp
-	ret		6
-;-----------------------------------------------------------------------------
-;    fun��o full_circle
-;	 push xc; push yc; push r; call full_circle;  (xc+r<639,yc+r<479)e(xc-r>0,yc-r>0)
-; cor definida na variavel cor					  
-full_circle:
-	push 	bp
-	mov	 	bp,sp
-	pushf                        ;coloca os flags na pilha
-	push 	ax
-	push 	bx
-	push	cx
-	push	dx
-	push	si
-	push	di
-
-	mov		ax,[bp+8]    ; resgata xc
-	mov		bx,[bp+6]    ; resgata yc
-	mov		cx,[bp+4]    ; resgata r
-	
-	mov		si,bx
-	sub		si,cx
-	push    ax			;coloca xc na pilha			
-	push	si			;coloca yc-r na pilha
-	mov		si,bx
-	add		si,cx
-	push	ax		;coloca xc na pilha
-	push	si		;coloca yc+r na pilha
-	call line
-	
-		
-	mov		di,cx
-	sub		di,1	 ;di=r-1
-	mov		dx,0  	;dx ser� a vari�vel x. cx � a variavel y
-	
-;aqui em cima a l�gica foi invertida, 1-r => r-1
-;e as compara��es passaram a ser jl => jg, assim garante 
-;valores positivos para d
-
-stay_full:				;loop
-	mov		si,di
-	cmp		si,0
-	jg		inf_full       ;caso d for menor que 0, seleciona pixel superior (n�o  salta)
-	mov		si,dx		;o jl � importante porque trata-se de conta com sinal
-	sal		si,1		;multiplica por doi (shift arithmetic left)
-	add		si,3
-	add		di,si     ;nesse ponto d=d+2*dx+3
-	inc		dx		;incrementa dx
-	jmp		plotar_full
-inf_full:	
-	mov		si,dx
-	sub		si,cx  		;faz x - y (dx-cx), e salva em di 
-	sal		si,1
-	add		si,5
-	add		di,si		;nesse ponto d=d+2*(dx-cx)+5
-	inc		dx		;incrementa x (dx)
-	dec		cx		;decrementa y (cx)
-	
-plotar_full:	
-	mov		si,ax
-	add		si,cx
-	push	si		;coloca a abcisa y+xc na pilha			
-	mov		si,bx
-	sub		si,dx
-	push    si		;coloca a ordenada yc-x na pilha
-	mov		si,ax
-	add		si,cx
-	push	si		;coloca a abcisa y+xc na pilha	
-	mov		si,bx
-	add		si,dx
-	push    si		;coloca a ordenada yc+x na pilha	
-	call 	line
-	
-	mov		si,ax
-	add		si,dx
-	push	si		;coloca a abcisa xc+x na pilha			
-	mov		si,bx
-	sub		si,cx
-	push    si		;coloca a ordenada yc-y na pilha
-	mov		si,ax
-	add		si,dx
-	push	si		;coloca a abcisa xc+x na pilha	
-	mov		si,bx
-	add		si,cx
-	push    si		;coloca a ordenada yc+y na pilha	
-	call	line
-	
-	mov		si,ax
-	sub		si,dx
-	push	si		;coloca a abcisa xc-x na pilha			
-	mov		si,bx
-	sub		si,cx
-	push    si		;coloca a ordenada yc-y na pilha
-	mov		si,ax
-	sub		si,dx
-	push	si		;coloca a abcisa xc-x na pilha	
-	mov		si,bx
-	add		si,cx
-	push    si		;coloca a ordenada yc+y na pilha	
-	call	line
-	
-	mov		si,ax
-	sub		si,cx
-	push	si		;coloca a abcisa xc-y na pilha			
-	mov		si,bx
-	sub		si,dx
-	push    si		;coloca a ordenada yc-x na pilha
-	mov		si,ax
-	sub		si,cx
-	push	si		;coloca a abcisa xc-y na pilha	
-	mov		si,bx
-	add		si,dx
-	push    si		;coloca a ordenada yc+x na pilha	
-	call	line
-	
-	cmp		cx,dx
-	jb		fim_full_circle  ;se cx (y) est� abaixo de dx (x), termina     
-	jmp		stay_full		;se cx (y) est� acima de dx (x), continua no loop
-	
-	
-fim_full_circle:
-	pop		di
-	pop		si
-	pop		dx
-	pop		cx
-	pop		bx
-	pop		ax
-	popf
-	pop		bp
-	ret		6
 ;-----------------------------------------------------------------------------
 ;
 ;   fun��o line
 ;
 ; push x1; push y1; push x2; push y2; call line;  (x<639, y<479)
-line:
-		push		bp
-		mov		bp,sp
-		pushf                        ;coloca os flags na pilha
-		push 		ax
-		push 		bx
-		push		cx
-		push		dx
-		push		si
-		push		di
-		mov		ax,[bp+10]   ; resgata os valores das coordenadas
-		mov		bx,[bp+8]    ; resgata os valores das coordenadas
-		mov		cx,[bp+6]    ; resgata os valores das coordenadas
-		mov		dx,[bp+4]    ; resgata os valores das coordenadas
-		cmp		ax,cx
-		je		line2
-		jb		line1
-		xchg		ax,cx
-		xchg		bx,dx
-		jmp		line1
-line2:		; deltax=0
-		cmp		bx,dx  ;subtrai dx de bx
-		jb		line3
-		xchg		bx,dx        ;troca os valores de bx e dx entre eles
-line3:	; dx > bx
-		push		ax
-		push		bx
-		call 		plot_xy
-		cmp		bx,dx
-		jne		line31
-		jmp		fim_line
-line31:		inc		bx
-		jmp		line3
-;deltax <>0
-line1:
-; comparar m�dulos de deltax e deltay sabendo que cx>ax
-	; cx > ax
-		push		cx
-		sub		cx,ax
-		mov		[deltax],cx
-		pop		cx
-		push		dx
-		sub		dx,bx
-		ja		line32
-		neg		dx
-line32:		
-		mov		[deltay],dx
-		pop		dx
+;--> 
+	line:
+			push		bp
+			mov		bp,sp
+			pushf                        ;coloca os flags na pilha
+			push 		ax
+			push 		bx
+			push		cx
+			push		dx
+			push		si
+			push		di
+			mov		ax,[bp+10]   ; resgata os valores das coordenadas
+			mov		bx,[bp+8]    ; resgata os valores das coordenadas
+			mov		cx,[bp+6]    ; resgata os valores das coordenadas
+			mov		dx,[bp+4]    ; resgata os valores das coordenadas
+			cmp		ax,cx
+			je		line2
+			jb		line1
+			xchg		ax,cx
+			xchg		bx,dx
+			jmp		line1
+	line2:		; deltax=0
+			cmp		bx,dx  ;subtrai dx de bx
+			jb		line3
+			xchg		bx,dx        ;troca os valores de bx e dx entre eles
+	line3:	; dx > bx
+			push		ax
+			push		bx
+			call 		plot_xy
+			cmp		bx,dx
+			jne		line31
+			jmp		fim_line
+	line31:		inc		bx
+			jmp		line3
+	;deltax <>0
+	line1:
+	; comparar m�dulos de deltax e deltay sabendo que cx>ax
+		; cx > ax
+			push		cx
+			sub		cx,ax
+			mov		[deltax],cx
+			pop		cx
+			push		dx
+			sub		dx,bx
+			ja		line32
+			neg		dx
+	line32:		
+			mov		[deltay],dx
+			pop		dx
 
-		push		ax
-		mov		ax,[deltax]
-		cmp		ax,[deltay]
-		pop		ax
-		jb		line5
+			push		ax
+			mov		ax,[deltax]
+			cmp		ax,[deltay]
+			pop		ax
+			jb		line5
 
-	; cx > ax e deltax>deltay
-		push		cx
-		sub		cx,ax
-		mov		[deltax],cx
-		pop		cx
-		push		dx
-		sub		dx,bx
-		mov		[deltay],dx
-		pop		dx
+		; cx > ax e deltax>deltay
+			push		cx
+			sub		cx,ax
+			mov		[deltax],cx
+			pop		cx
+			push		dx
+			sub		dx,bx
+			mov		[deltay],dx
+			pop		dx
 
-		mov		si,ax
-line4:
-		push		ax
-		push		dx
-		push		si
-		sub		si,ax	;(x-x1)
-		mov		ax,[deltay]
-		imul		si
-		mov		si,[deltax]		;arredondar
-		shr		si,1
-; se numerador (DX)>0 soma se <0 subtrai
-		cmp		dx,0
-		jl		ar1
-		add		ax,si
-		adc		dx,0
-		jmp		arc1
-ar1:		sub		ax,si
-		sbb		dx,0
-arc1:
-		idiv		word [deltax]
-		add		ax,bx
-		pop		si
-		push		si
-		push		ax
-		call		plot_xy
-		pop		dx
-		pop		ax
-		cmp		si,cx
-		je		fim_line
-		inc		si
-		jmp		line4
+			mov		si,ax
+	line4:
+			push		ax
+			push		dx
+			push		si
+			sub		si,ax	;(x-x1)
+			mov		ax,[deltay]
+			imul		si
+			mov		si,[deltax]		;arredondar
+			shr		si,1
+	; se numerador (DX)>0 soma se <0 subtrai
+			cmp		dx,0
+			jl		ar1
+			add		ax,si
+			adc		dx,0
+			jmp		arc1
+	ar1:		sub		ax,si
+			sbb		dx,0
+	arc1:
+			idiv		word [deltax]
+			add		ax,bx
+			pop		si
+			push		si
+			push		ax
+			call		plot_xy
+			pop		dx
+			pop		ax
+			cmp		si,cx
+			je		fim_line
+			inc		si
+			jmp		line4
 
-line5:		cmp		bx,dx
-		jb 		line7
-		xchg		ax,cx
-		xchg		bx,dx
-line7:
-		push		cx
-		sub		cx,ax
-		mov		[deltax],cx
-		pop		cx
-		push		dx
-		sub		dx,bx
-		mov		[deltay],dx
-		pop		dx
+	line5:		cmp		bx,dx
+			jb 		line7
+			xchg		ax,cx
+			xchg		bx,dx
+	line7:
+			push		cx
+			sub		cx,ax
+			mov		[deltax],cx
+			pop		cx
+			push		dx
+			sub		dx,bx
+			mov		[deltay],dx
+			pop		dx
 
 
 
-		mov		si,bx
-line6:
-		push		dx
-		push		si
-		push		ax
-		sub		si,bx	;(y-y1)
-		mov		ax,[deltax]
-		imul		si
-		mov		si,[deltay]		;arredondar
-		shr		si,1
-; se numerador (DX)>0 soma se <0 subtrai
-		cmp		dx,0
-		jl		ar2
-		add		ax,si
-		adc		dx,0
-		jmp		arc2
-ar2:		sub		ax,si
-		sbb		dx,0
-arc2:
-		idiv		word [deltay]
-		mov		di,ax
-		pop		ax
-		add		di,ax
-		pop		si
-		push		di
-		push		si
-		call		plot_xy
-		pop		dx
-		cmp		si,dx
-		je		fim_line
-		inc		si
-		jmp		line6
+			mov		si,bx
+	line6:
+			push		dx
+			push		si
+			push		ax
+			sub		si,bx	;(y-y1)
+			mov		ax,[deltax]
+			imul		si
+			mov		si,[deltay]		;arredondar
+			shr		si,1
+	; se numerador (DX)>0 soma se <0 subtrai
+			cmp		dx,0
+			jl		ar2
+			add		ax,si
+			adc		dx,0
+			jmp		arc2
+	ar2:		sub		ax,si
+			sbb		dx,0
+	arc2:
+			idiv		word [deltay]
+			mov		di,ax
+			pop		ax
+			add		di,ax
+			pop		si
+			push		di
+			push		si
+			call		plot_xy
+			pop		dx
+			cmp		si,dx
+			je		fim_line
+			inc		si
+			jmp		line6
 
-fim_line:
-		pop		di
-		pop		si
-		pop		dx
-		pop		cx
-		pop		bx
-		pop		ax
-		popf
-		pop		bp
-		ret		8
+	fim_line:
+			pop		di
+			pop		si
+			pop		dx
+			pop		cx
+			pop		bx
+			pop		ax
+			popf
+			pop		bp
+			ret		8
 ;*******************************************************************
 segment data
 
@@ -1644,7 +1490,6 @@ footer_string       db      'Lucas Manfioletti turma 6.1',0, 'Sistemas Embarcado
 
 buffer_byte db 0
 buffer_pixel times  4  db 0
-buffer_hist_word dw 0
 buffer_line times 250 db 0
 buffer_line_1 times 250 db 0
 buffer_line_2 times 250 db 0
