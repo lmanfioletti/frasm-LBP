@@ -1,5 +1,5 @@
 ; Lucas Manfioletti - 2020101417
-; Sistemas Embarcados 2023/1
+; Sistemas Embarcados 2023/1 - turme 6.1
 
 segment code
 ..start:
@@ -70,6 +70,8 @@ segment code
 		ret
 		;check Hist button
 		check_Hist_button:
+			cmp byte[isImageOpen], 0
+			je click_check
 			cmp cx, 129
 			jb click_check
 			cmp cx, 179
@@ -79,6 +81,8 @@ segment code
 		ret
 		;check HistLBP button
 		check_HistLBP_button:
+			cmp byte[isImageLBPOpen], 0
+			je click_check
 			cmp cx, 184
 			jb click_check
 			cmp cx, 234
@@ -100,12 +104,26 @@ segment code
 ;   Buttons to call to your functions
 ;
 ;-->
+	;this function call function to clear hist buffer
+	clear_hist_buffer:
+		push cx
+		mov cx, 16
+			map_hist_buffer:
+				mov byte[bx], 0
+				add bx, 2
+			loop map_hist_buffer
+		pop cx
+		ret
 	; this function call function to draw original image and change button color to yellow
 	open_button_select:
 		call reset_layout_base_buttons 
 		mov		byte[cor],amarelo
 		call draw_layout_base_default_open_button
-		call draw_original_image 
+		;clear hist buffer
+		mov bx, bufferHistImg
+		call clear_hist_buffer
+		call draw_original_image
+		mov byte[isImageOpen], 1 
 		ret
 	;_____________________________________________________________________________
 	; this function call function to draw lbp image and change button color to yellow
@@ -113,7 +131,11 @@ segment code
 		call reset_layout_base_buttons 
 		mov		byte[cor],amarelo
 		call draw_layout_base_default_LBP_button
+		;clear hist buffer
+		mov bx, bufferHistImgLBP
+		call clear_hist_buffer
 		call draw_lbp_image 
+		mov byte[isImageLBPOpen], 1 
 		ret
 	;_____________________________________________________________________________
 	; this function call function to draw Histogram from original image and change button color to yellow
@@ -569,7 +591,7 @@ segment code
 
 ;_____________________________________________________________________________
 ;
-;   function to print screen on UI
+;   function to print string on UI
 ;
 ; 	the user give string to pirnt on bx, and collum on dl and line on dh
 ;-->
@@ -1045,7 +1067,7 @@ segment code
 ;
 ; take buffer from pixel converted to byte, 
 ; and convert this to VGA scale diving by 16
-;-->
+;-->			
 	;inc hist
 		inc_hist_img:
 			add byte[bufferHistImg + bx], 1
@@ -1495,6 +1517,8 @@ ReadError DB "Ocorreu um erro(lendo)!$"
 isHistLBP db 0
 bufferHistImg times 16 dw 0000
 bufferHistImgLBP times 16 dw 0000
+isImageOpen db 0
+isImageLBPOpen db 0
 ;*************************************************************************
 segment stack stack
     		resb 		512
