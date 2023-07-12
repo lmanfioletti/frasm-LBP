@@ -330,8 +330,9 @@ call draw_layout_base_default
             call draw_and_update_scores
             cmp byte[ball_crash_right_counter], 99
             jne  check_top_crash
+            mov bx, string_machine_win
+            mov byte[cor], vermelho
             call exit_program
-            ;call machine_win
             check_stick_crash:
             cmp word[ball_x_position], 590 ;639px(max width) - 1px(border) - stick position - ball radio
             jne check_left_crash
@@ -351,8 +352,9 @@ call draw_layout_base_default
             ; check_student_win:
             cmp byte[ball_crash_stick_counter], 99
             jne  check_top_crash
+            mov bx, string_student_win
+            mov byte[cor], verde
             call exit_program
-            ;call student_win
             jmp check_top_crash
             check_left_crash:
             cmp word[ball_x_position], 9 ;ball radio + 1px(border)
@@ -422,6 +424,8 @@ call draw_layout_base_default
         ;check esc key
         cmp al, 1h
         jne check_up_key
+        mov bx, string_exit
+        mov byte[cor], branco_intenso
 		call exit_program
         check_up_key:
         cmp al, 48h
@@ -471,6 +475,11 @@ call draw_layout_base_default
 ;
 ;-->
 	exit_program:
+        ;print message on dx
+        mov     	dh,4			;line 0-29
+        mov     	dl,9			;column 0-79
+        call 	print_string
+        
         ;removing keyint and reset original ISR 
         cli
         xor     ax, ax
@@ -1120,6 +1129,9 @@ string_machine_score       db      '00', 0
 string_machine_name        db      'Computador', 0
 string_speed        db      'Velocidade atual: ', 0
 string_current_speed        db      '1', 0
+string_exit     db '>>> Voce saiu do jogo!', 0
+string_student_win     db '>>> Nice!!! Voce venceu o computador.', 0
+string_machine_win     db '>>> Boa sorte na proxima :/ O computador venceu.', 0
 
 ;Keyint tecbuf.asm variables
     kb_data equ 60h  ;PORTA DE LEITURA DE TECLADO
@@ -1135,7 +1147,6 @@ string_current_speed        db      '1', 0
     p_t     dw  0   ;ponterio p/ interrupcao (qnd uma tecla é liberada)    
     teclasc db  0,0,13,10,'$'
     
-
 ;*************************************************************************
 segment stack stack
     		resb 		512
