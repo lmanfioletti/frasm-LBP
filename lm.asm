@@ -159,10 +159,32 @@ call draw_layout_base_default
     ;_____________________________________________________________________________
    	; this function draw and update scores
     draw_and_update_scores:
+        mov byte[cor], branco_intenso
+
+        ; Convert the number to a string
+        mov al, [ball_crash_stick_counter]  ; Move the value to AL register
+        xor ah, ah                         ; Clear AH register
+        mov bl, 10                         ; Divisor for extracting tens digit
+        div bl                             ; Divide AL by BL, quotient in AL, remainder in AH
+
+        add ax, '00'                       ; Convert the digits to their ASCII representations
+        mov [string_student_score], ax    ; Store the converted digits in the string
+
         mov     	dh,2			;line 0-29
         mov     	dl,28			;column 0-79
         mov bx, string_student_score
         call 	print_string
+
+        ; Convert the number to a string
+        mov al, [ball_crash_right_counter]  ; Move the value to AL register
+        xor ah, ah                         ; Clear AH register
+        mov bl, 10                         ; Divisor for extracting tens digit
+        div bl                             ; Divide AL by BL, quotient in AL, remainder in AH
+
+        add ax, '00'                       ; Convert the digits to their ASCII representations
+        mov [string_computer_score], ax    ; Store the converted digits in the string
+
+        update_computer_score:
         mov     	dh,2			;line 0-29
         mov     	dl,33			;column 0-79
         mov bx, string_computer_score
@@ -209,39 +231,39 @@ call draw_layout_base_default
 ;
 ;-->
     update_ball:
-    ; erase old ball
-    mov byte[cor], preto
-    call draw_ball
-    ; ball_y_movement:
-        xor     ax, ax
-        cmp     byte[is_ball_crash_top], 1
-        je      ball_down_movement
-    ball_up_movement:
-        add     word[ball_y_position], 1
-        jmp     ball_x_movement
-    ball_down_movement:
-        sub     word[ball_y_position], 1
-    ball_x_movement:
-        cmp     byte[is_ball_crash_stick], 1
-        je     ball_left_movement
-    ball_right_movement:
-        cmp     byte[is_ball_crash_right], 1
-        je      restart_ball
-        add     word[ball_x_position], 1
-        jmp     draw_updated_ball
-    ball_left_movement:
-        sub     word[ball_x_position], 1
-        jmp     draw_updated_ball
-    restart_ball:
-        mov     word[ball_x_position], 80
-        mov byte[is_ball_crash_right], 0
-        mov byte[is_ball_crash_top], 0
-        mov byte[is_ball_crash_stick], 0
-
-    draw_updated_ball:
-        mov byte[cor], vermelho
+        ; erase old ball
+        mov byte[cor], preto
         call draw_ball
-    ret
+        ; ball_y_movement:
+            xor     ax, ax
+            cmp     byte[is_ball_crash_top], 1
+            je      ball_down_movement
+        ball_up_movement:
+            add     word[ball_y_position], 1
+            jmp     ball_x_movement
+        ball_down_movement:
+            sub     word[ball_y_position], 1
+        ball_x_movement:
+            cmp     byte[is_ball_crash_stick], 1
+            je     ball_left_movement
+        ball_right_movement:
+            cmp     byte[is_ball_crash_right], 1
+            je      restart_ball
+            add     word[ball_x_position], 1
+            jmp     draw_updated_ball
+        ball_left_movement:
+            sub     word[ball_x_position], 1
+            jmp     draw_updated_ball
+        restart_ball:
+            mov     word[ball_x_position], 80
+            mov byte[is_ball_crash_right], 0
+            mov byte[is_ball_crash_top], 0
+            mov byte[is_ball_crash_stick], 0
+
+        draw_updated_ball:
+            mov byte[cor], vermelho
+            call draw_ball
+        ret
 
 ;_____________________________________________________________________________
 ;
@@ -285,31 +307,27 @@ call draw_layout_base_default
 ;
 ;-->
     state_update:
-        ;score state
-            ;check_student_win
-            cmp byte[ball_crash_stick_counter], 99
-            jne  check_machine_win
-            ;call student_win
-            check_machine_win:
-            cmp byte[ball_crash_right_counter], 99
-            jne  check_stick_change 
-            ;call machine_win
         ;stick state (the states are controled on keyboard input check bellow)
             check_stick_change:
             cmp byte[isUpPressed], 1
             je call_update_stick
             cmp byte[isDownPressed], 1
-            jne check_right_crash
+            jne skip_update_stick
             call_update_stick:
             call update_stick
+            skip_update_stick:
         ;ball state
-            ;check_x_crash:
+            ;check x crash:
             check_right_crash:
             cmp word[ball_x_position], 630 ;639px(max width) - 1px(border) - ball radio
             jb  check_stick_crash
             mov byte[is_ball_crash_right], 1
             add byte[ball_crash_right_counter], 1
-            jmp check_top_crash
+            call draw_and_update_scores
+            cmp byte[ball_crash_right_counter], 99
+            jne  check_top_crash
+            call exit_program
+            ;call machine_win
             check_stick_crash:
             cmp word[ball_x_position], 590 ;639px(max width) - 1px(border) - stick position - ball radio
             jne check_left_crash
@@ -325,6 +343,12 @@ call draw_layout_base_default
             jb check_left_crash
             mov byte[is_ball_crash_stick], 1
             add byte[ball_crash_stick_counter], 1 
+            call draw_and_update_scores
+            ; check_student_win:
+            cmp byte[ball_crash_stick_counter], 99
+            jne  check_top_crash
+            call exit_program
+            ;call student_win
             jmp check_top_crash
             check_left_crash:
             cmp word[ball_x_position], 9 ;ball radio + 1px(border)
@@ -352,8 +376,6 @@ consolTest:
 	int 21h
 	jmp exit_program
     
-    ;add interruption to move stick
-    ;fix score update and convert values
     ;add speed controller
 
 
