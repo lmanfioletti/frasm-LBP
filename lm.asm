@@ -51,7 +51,7 @@ call draw_layout_base_default
         mov byte[cor], vermelho
         call draw_ball
         mov byte[cor], branco_intenso
-        call draw_and_update_stick
+        call draw_stick
         ret
     ;_____________________________________________________________________________
 	; this function draw global UI border
@@ -189,7 +189,7 @@ call draw_layout_base_default
         ret
     ;_____________________________________________________________________________
    	; this function draw and update stick, basead on color defined by user
-    draw_and_update_stick:
+    draw_stick:
 		mov		ax, [stick_x_position]
 		push		ax
 		mov		ax, [stick_y_position]
@@ -239,8 +239,8 @@ call draw_layout_base_default
         mov byte[is_ball_crash_stick], 0
 
     draw_updated_ball:
-    mov byte[cor], vermelho
-    call draw_ball
+        mov byte[cor], vermelho
+        call draw_ball
     ret
 
 ;_____________________________________________________________________________
@@ -248,60 +248,100 @@ call draw_layout_base_default
 ;   Stick position update
 ;
 ;-->
+    update_stick:
+        ; erase old ball
+        mov byte[cor], preto
+        call draw_stick
+
+        cmp byte[isUpPressed], 1
+        jne down_key_pressed
+        mov byte[isUpPressed], 0
+        xor ax, ax
+        mov ax, [jump_lenght]
+        add ax, [stick_y_position]
+        cmp ax, [limit_top_border]
+        jnb draw_updated_stick
+        mov [stick_y_position], ax
+        jmp draw_updated_stick
+        down_key_pressed:
+        mov byte[isDownPressed], 0
+        xor ax, ax
+        mov ax, [stick_y_position]
+        sub ax, [stick_lenght]
+        sub ax, [jump_lenght]
+        cmp ax, [limit_bottom_border]
+        jl draw_updated_stick
+        add ax, [stick_lenght]
+        mov [stick_y_position], ax
+        draw_updated_stick:
+            mov byte[cor], branco_intenso
+            call draw_stick
+        ret
+
 
 ;_____________________________________________________________________________
 ;
-;   State check and update
+;   State check and call update
 ;
 ;-->
     state_update:
-        ;check_student_win
-        cmp byte[ball_crash_stick_counter], 99
-        jne  check_machine_win
-        ;call student_win
-        check_machine_win:
-        cmp byte[ball_crash_right_counter], 99
-        jne  check_right_crash 
-        ;call machine_win
-        ;check_x_crash:
-        check_right_crash:
-        cmp word[ball_x_position], 630 ;639px(max width) - 1px(border) - ball radio
-        jb  check_stick_crash
-        mov byte[is_ball_crash_right], 1
-        add byte[ball_crash_right_counter], 1
-        jmp check_top_crash
-        check_stick_crash:
-        cmp word[ball_x_position], 590 ;639px(max width) - 1px(border) - stick position - ball radio
-        jne check_left_crash
-        mov ax, [ball_y_position]
-        sub ax, 8 ;geting ball y bottom position
-        cmp ax, [stick_y_position]
-        jnb check_left_crash
-        mov ax, [ball_y_position]
-        add ax, 8 ;geting ball y bottom postion
-        mov bx, [stick_y_position]
-        sub bx, 50 ; getting stick y botton postion
-        cmp ax, bx
-        jb check_left_crash
-        mov byte[is_ball_crash_stick], 1
-        add byte[ball_crash_stick_counter], 1 
-        jmp check_top_crash
-        check_left_crash:
-        cmp word[ball_x_position], 9 ;ball radio + 1px(border)
-        jnb check_top_crash
-        mov byte[is_ball_crash_stick], 0
-        ;check_y_crash:
-        check_top_crash:
-        cmp word[ball_y_position], 412
-        jb  check_bottom_crash
-        mov byte[is_ball_crash_top], 1
-        jmp call_update_update_ball
-        check_bottom_crash:
-        cmp word[ball_y_position], 10
-        jnb call_update_update_ball
-        mov byte[is_ball_crash_top], 0
-        call_update_update_ball:
-        call update_ball
+        ;score state
+            ;check_student_win
+            cmp byte[ball_crash_stick_counter], 99
+            jne  check_machine_win
+            ;call student_win
+            check_machine_win:
+            cmp byte[ball_crash_right_counter], 99
+            jne  check_stick_change 
+            ;call machine_win
+        ;stick state (the states are controled on keyboard input check bellow)
+            check_stick_change:
+            cmp byte[isUpPressed], 1
+            je call_update_stick
+            cmp byte[isDownPressed], 1
+            jne check_right_crash
+            call_update_stick:
+            call update_stick
+        ;ball state
+            ;check_x_crash:
+            check_right_crash:
+            cmp word[ball_x_position], 630 ;639px(max width) - 1px(border) - ball radio
+            jb  check_stick_crash
+            mov byte[is_ball_crash_right], 1
+            add byte[ball_crash_right_counter], 1
+            jmp check_top_crash
+            check_stick_crash:
+            cmp word[ball_x_position], 590 ;639px(max width) - 1px(border) - stick position - ball radio
+            jne check_left_crash
+            mov ax, [ball_y_position]
+            sub ax, 8 ;geting ball y bottom position
+            cmp ax, [stick_y_position]
+            jnb check_left_crash
+            mov ax, [ball_y_position]
+            add ax, 8 ;geting ball y bottom postion
+            mov bx, [stick_y_position]
+            sub bx, 50 ; getting stick y botton postion
+            cmp ax, bx
+            jb check_left_crash
+            mov byte[is_ball_crash_stick], 1
+            add byte[ball_crash_stick_counter], 1 
+            jmp check_top_crash
+            check_left_crash:
+            cmp word[ball_x_position], 9 ;ball radio + 1px(border)
+            jnb check_top_crash
+            mov byte[is_ball_crash_stick], 0
+            ;check_y_crash:
+            check_top_crash:
+            cmp word[ball_y_position], 412
+            jb  check_bottom_crash
+            mov byte[is_ball_crash_top], 1
+            jmp call_update_ball
+            check_bottom_crash:
+            cmp word[ball_y_position], 10
+            jnb call_update_ball
+            mov byte[is_ball_crash_top], 0
+            call_update_ball:
+            call update_ball
         ret
 
 consolTest:
@@ -337,7 +377,18 @@ consolTest:
 
         ;check esc key
         cmp al, 1h
-		je exit_program
+        jne check_up_key
+		call exit_program
+
+        check_up_key:
+        cmp al, 48h
+		jne check_down_key
+        mov byte[isUpPressed], 1
+        check_down_key:
+        cmp al, 50h
+		jne check_plus_key
+        mov byte[isDownPressed], 1
+        check_plus_key:
         ret	
 
 ;_____________________________________________________________________________
@@ -979,11 +1030,17 @@ coluna  	dw  		0
 deltax		dw		0
 deltay		dw		0
 
-;Stick data
-stick_x_position     dw  600
-stick_y_position     dw  290 ;this represents top pixel from stick ex:(sticker bettewen 290 and 240)
+;Stick
+stick_lenght     dw      50
+stick_x_position     dw  599
+stick_y_position     dw  220 ;this represents top pixel from stick ex:(sticker bettewen 290 and 240)
+isUpPressed     db      0
+isDownPressed       db      0
+jump_lenght     dw      33
+limit_top_border        dw      419
+limit_bottom_border        dw      1
 
-;Ball data
+;Ball
 ball_x_position     dw  80
 ball_y_position     dw  20 ;this represents the main point in ball
 is_ball_crash_top   db  1
