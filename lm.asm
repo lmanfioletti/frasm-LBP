@@ -139,7 +139,7 @@ call draw_layout_base_default
                 call 	print_string
                 mov     	dh,2			;line 0-29
                 mov     	dl,37			;column 0-79
-                mov bx, string_computer_name
+                mov bx, string_machine_name
                 call 	print_string
                 mov     	dh,2			;line 0-29
                 mov     	dl,51			;column 0-79
@@ -161,38 +161,41 @@ call draw_layout_base_default
     draw_and_update_scores:
         mov byte[cor], branco_intenso
 
-        ; Convert the number to a string
-        mov al, [ball_crash_stick_counter]  ; Move the value to AL register
-        xor ah, ah                         ; Clear AH register
-        mov bl, 10                         ; Divisor for extracting tens digit
-        div bl                             ; Divide AL by BL, quotient in AL, remainder in AH
-
-        add ax, '00'                       ; Convert the digits to their ASCII representations
-        mov [string_student_score], ax    ; Store the converted digits in the string
+        ; convert the number to a string
+        mov al, [ball_crash_stick_counter]  ; move the value to AL register
+        xor ah, ah                         ; clear AH register
+        mov bl, 10                         ; divisor for extracting tens digit
+        div bl                             ; divide AL by BL, quotient in AL, remainder in AH
+        add ax, '00'                       ; convert the digits to their ASCII representations
+        mov [string_student_score], ax    ; store the converted digits in the string
 
         mov     	dh,2			;line 0-29
         mov     	dl,28			;column 0-79
         mov bx, string_student_score
         call 	print_string
 
-        ; Convert the number to a string
-        mov al, [ball_crash_right_counter]  ; Move the value to AL register
-        xor ah, ah                         ; Clear AH register
-        mov bl, 10                         ; Divisor for extracting tens digit
-        div bl                             ; Divide AL by BL, quotient in AL, remainder in AH
+        ; convert the number to a string
+        mov al, [ball_crash_right_counter]  ; move the value to AL register
+        xor ah, ah                         ; clear AH register
+        mov bl, 10                         ; divisor for extracting tens digit
+        div bl                             ; divide AL by BL, quotient in AL, remainder in AH
+        add ax, '00'                       ; convert the digits to their ASCII representations
+        mov [string_machine_score], ax    ; store the converted digits in the string
 
-        add ax, '00'                       ; Convert the digits to their ASCII representations
-        mov [string_computer_score], ax    ; Store the converted digits in the string
-
-        update_computer_score:
         mov     	dh,2			;line 0-29
         mov     	dl,33			;column 0-79
-        mov bx, string_computer_score
+        mov bx, string_machine_score
         call 	print_string
         ret
     ;_____________________________________________________________________________
    	; this function draw and update the speed
     draw_and_update_speed:
+        mov byte[cor], branco_intenso
+        ; Convert the number to a string
+        mov al, [ball_current_speed]  ; Move the value to AL register
+        add al, '0'                         ; Convert the value to its ASCII representation
+        mov [string_current_speed], al      ; Store the converted digit in the string
+
         mov     	dh,2			;line 0-29
         mov     	dl,69			;column 0-79
         mov bx, string_current_speed
@@ -316,6 +319,8 @@ call draw_layout_base_default
             call_update_stick:
             call update_stick
             skip_update_stick:
+        ;speed update
+            call draw_and_update_speed
         ;ball state
             ;check x crash:
             check_right_crash:
@@ -377,6 +382,8 @@ consolTest:
 	jmp exit_program
     
     ;add speed controller
+    ;exit custom messages
+    ;fix diagonal ball broke
 
 
 ;_____________________________________________________________________________
@@ -401,16 +408,30 @@ consolTest:
         cmp al, 1h
         jne check_up_key
 		call exit_program
-
         check_up_key:
         cmp al, 48h
 		jne check_down_key
         mov byte[isUpPressed], 1
+        jmp exit_key_check
         check_down_key:
         cmp al, 50h
 		jne check_plus_key
         mov byte[isDownPressed], 1
+        jmp exit_key_check
         check_plus_key:
+        cmp al, 0dh
+        jne check_minus_key
+        cmp byte[ball_current_speed], 3
+        je exit_key_check
+        add byte[ball_current_speed], 1
+        jmp exit_key_check
+        check_minus_key:
+        cmp al, 0ch
+        jne exit_key_check
+        cmp byte[ball_current_speed], 1
+        je exit_key_check
+        sub byte[ball_current_speed], 1
+        exit_key_check:
         ret	
 
 ;_____________________________________________________________________________
@@ -1070,14 +1091,15 @@ is_ball_crash_right   db  0
 ball_crash_right_counter     db 0
 is_ball_crash_stick   db  0
 ball_crash_stick_counter   db  0
+ball_current_speed      db      1
 
 ;Strings
 string_header    	db  		'Exercicio de Programacao de Sistemas Embarcados 1 - 2023/1', 0
 string_student_name     db      'Lucas Manfioletti', 0
 string_student_score        db      '00', 0 
 string_x        db      'x', 0
-string_computer_score       db      '00', 0
-string_computer_name        db      'Computador', 0
+string_machine_score       db      '00', 0
+string_machine_name        db      'Computador', 0
 string_speed        db      'Velocidade atual: ', 0
 string_current_speed        db      '1', 0
 
