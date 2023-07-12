@@ -37,7 +37,6 @@ call draw_layout_base_default
    main_loop:
        call check_keyboad_input
        call state_update
-       ;call speed_delay
        jmp main_loop
 ;_____________________________________________________________________________
 ;
@@ -306,7 +305,7 @@ call draw_layout_base_default
 
 ;_____________________________________________________________________________
 ;
-;   State check and call update
+;   State check and call update with speed delay
 ;
 ;-->
     state_update:
@@ -371,17 +370,33 @@ call draw_layout_base_default
             mov byte[is_ball_crash_top], 0
             call_update_ball:
             call update_ball
+            call speed_delay
         ret
 
-consolTest:
-	mov dx,consolTestmsg ; exibe um erro
-	mov ah,09h      ; usando a função 09h
-	int 21h         ; chama serviço do DOS
-	mov ax,4C02h        ; termina programa com um errorlevel =2
-	int 21h
-	jmp exit_program
+    speed_delay:
+        ;checking v1 speed
+        cmp byte[ball_current_speed], 1
+		jne check_v2_speed
+        mov dx, [v1_speed]
+        jmp call_int_15h
+        check_v2_speed:
+        cmp byte[ball_current_speed], 2
+		jne check_v3_speed
+        mov dx, [v2_speed]
+        jmp call_int_15h
+        check_v3_speed:
+        cmp byte[ball_current_speed], 3
+        jne exit_delay
+        mov dx, [v3_speed]
+        call_int_15h:
+        	push		cx			
+            xor cx,cx
+            mov ah,86h
+            int 15h
+            pop		cx
+        exit_delay:
+        ret
     
-    ;add speed controller
     ;exit custom messages
     ;fix diagonal ball broke
 
@@ -1092,6 +1107,9 @@ ball_crash_right_counter     db 0
 is_ball_crash_stick   db  0
 ball_crash_stick_counter   db  0
 ball_current_speed      db      1
+v1_speed        dw      3000
+v2_speed        dw      1000
+v3_speed        dw      10
 
 ;Strings
 string_header    	db  		'Exercicio de Programacao de Sistemas Embarcados 1 - 2023/1', 0
@@ -1117,9 +1135,6 @@ string_current_speed        db      '1', 0
     p_t     dw  0   ;ponterio p/ interrupcao (qnd uma tecla é liberada)    
     teclasc db  0,0,13,10,'$'
     
-
-
-consolTestmsg DB "Follow from here!$"
 
 ;*************************************************************************
 segment stack stack
