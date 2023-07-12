@@ -9,6 +9,19 @@ segment code
     		mov 		ss,ax
     		mov 		sp,stacktop
 
+; load interruption table
+    cli
+        xor     ax, ax
+        mov     es, ax
+        mov     ax, [es:int9*4]
+        mov     [offset_dos], ax       
+        mov     ax, [es:int9*4+2]   
+        mov     [cs_dos], ax	
+        mov     [es:int9*4+2], cs
+        mov     word[es:int9*4], keyint
+    sti
+
+
 ; save correct video mode (seeing how the machine's video mode is
             mov  		ah,0Fh
     		int  		10h
@@ -19,11 +32,13 @@ segment code
    		mov     	ah,0
     	int     	10h
 
-		call draw_layout_base_default
-        main_loop:
-            call state_update
-            jmp main_loop
-        call exit_program
+
+call draw_layout_base_default
+   main_loop:
+       call check_keyboad_input
+       call state_update
+       ;call speed_delay
+       jmp main_loop
 ;_____________________________________________________________________________
 ;
 ;   UI layout functions
@@ -297,11 +312,33 @@ consolTest:
 	int 21h
 	jmp exit_program
     
-    ;add interruption to esc
     ;add interruption to move stick
     ;fix score update and convert values
     ;add speed controller
 
+
+;_____________________________________________________________________________
+;
+;   Check keyboard input and handle it
+;
+;-->
+    check_keyboad_input:
+        mov     ax,[p_i]
+		cmp     ax,[p_t]
+		jne     check_which_input
+        ret
+        check_which_input:
+		inc     word[p_t]
+		and     word[p_t],7
+		mov     bx,[p_t]
+
+		xor     AX, AX
+		mov     AL, [bx+tecla]
+
+        ;check esc key
+        cmp al, 1h
+		je exit_program
+        ret	
 
 ;_____________________________________________________________________________
 ;   Function to print string on UI
@@ -321,23 +358,34 @@ consolTest:
 		ret
 ;_____________________________________________________________________________
 ;
-;   function to exit program
+;   function to exit from program
 ;
 ;-->
 	exit_program:
-	mov    	ah,08h
-	int     21h
-	mov  	ah,0   			; set video mode
-	mov  	al,[modo_anterior]   	; before mode
-	int  	10h
-	mov     ax,4c00h
-	int     21h
+        ;removing keyint and reset original ISR 
+        cli
+        xor     ax, ax
+        mov     es, ax
+        mov     ax, [cs_dos]
+        mov     [es:int9*4+2], ax
+        mov     ax, [offset_dos]
+        mov     [es:int9*4], ax 
+        mov     AH, 4Ch
+        int     21h
+
+        mov    	ah,08h
+        int     21h
+        mov  	ah,0   			; set video mode
+        mov  	al,[modo_anterior]   	; before mode
+        int  	10h
+        mov     ax,4c00h
+        int     21h
 
 ;_____________________________________________________________________________
 ;
 ;
 ;***************************************************************************
-;FUNCTIONS FROM LINEC.asm
+;FUNCTIONS FROM linec.asm
 ;***************************************************************************
 ;-->
     ;
@@ -860,6 +908,32 @@ consolTest:
             pop		bp
             ret		8
 ;*******************************************************************
+;FUNCTION FROM tecbuf.asm
+;***************************************************************************
+;-->
+   	keyint:
+		push    ax
+		push    bx
+		push    ds
+		mov     ax,data
+		mov     ds,ax
+		in      al, kb_data
+		inc     WORD [p_i]
+		and     WORD [p_i],7
+		mov     bx,[p_i]
+		mov     [bx+tecla],al
+		in      al, kb_ctl
+		or      al, 80h
+		out     kb_ctl, al
+		and     al, 7Fh
+		out     kb_ctl, al
+		mov     al, eoi
+		out     pictrl, al
+		pop     ds
+		pop     bx
+		pop     ax
+		iret 
+;***************************************************************************
 segment data
 
 cor		db		branco_intenso
@@ -927,6 +1001,21 @@ string_computer_score       db      '00', 0
 string_computer_name        db      'Computador', 0
 string_speed        db      'Velocidade atual: ', 0
 string_current_speed        db      '1', 0
+
+;Keyint tecbuf.asm variables
+    kb_data equ 60h  ;PORTA DE LEITURA DE TECLADO
+    kb_ctl  equ 61h  ;PORTA DE RESET PARA PEDIR NOVA INTERRUPCAO
+    pictrl  equ 20h	 ;ENDEREÇO ONDE ESTÁ LOCALIZADO O PIC8259
+    eoi     equ 20h  ;PARA OCW2: SINALIZA TÉRMINO DE INTERRUPÇÃO NORMAL
+    int9    equ 9h   ;NÚMERO DA INTERRUPÇÃO DE TECLADO NO PC
+    cs_dos  dw  1
+    offset_dos  dw 1
+    tecla_u db 0
+    tecla   resb  8 
+    p_i     dw  0   ;ponteiro p/ interrupcao (qnd uma tecla é pressionada)  
+    p_t     dw  0   ;ponterio p/ interrupcao (qnd uma tecla é liberada)    
+    teclasc db  0,0,13,10,'$'
+    
 
 
 consolTestmsg DB "Follow from here!$"
