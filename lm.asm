@@ -1,5 +1,5 @@
 ; Lucas Manfioletti - 2020101417
-; Sistemas Embarcados 2023/1 - turme 6.1
+; Sistemas Embarcados 2023/1 - turma 6.1
 
 segment code
 ..start:
@@ -273,7 +273,7 @@ call draw_layout_base_default
 ;
 ;-->
     update_stick:
-        ; erase old ball
+        ; erase old stick
         mov byte[cor], preto
         call draw_stick
 
@@ -301,15 +301,13 @@ call draw_layout_base_default
             mov byte[cor], branco_intenso
             call draw_stick
         ret
-
-
 ;_____________________________________________________________________________
 ;
 ;   State check and call update with speed delay
 ;
 ;-->
     state_update:
-        ;stick state (the states are controled on keyboard input check bellow)
+        ;stick state (the state is controled on keyboard input checked bellow)
             check_stick_change:
             cmp byte[isUpPressed], 1
             je call_update_stick
@@ -318,9 +316,12 @@ call draw_layout_base_default
             call_update_stick:
             call update_stick
             skip_update_stick:
-        ;speed update
+        ;speed state and update
+            cmp byte[is_speed_changed], 0
+            je check_right_crash
             call draw_and_update_speed
-        ;ball state
+            mov byte[is_speed_changed], 0
+        ;ball crash check and update state
             ;check x crash:
             check_right_crash:
             cmp word[ball_x_position], 630 ;639px(max width) - 1px(border) - ball radio
@@ -427,29 +428,35 @@ call draw_layout_base_default
         mov bx, string_exit
         mov byte[cor], branco_intenso
 		call exit_program
+
         check_up_key:
         cmp al, 48h
 		jne check_down_key
         mov byte[isUpPressed], 1
         jmp exit_key_check
+
         check_down_key:
         cmp al, 50h
 		jne check_plus_key
         mov byte[isDownPressed], 1
         jmp exit_key_check
+
         check_plus_key:
         cmp al, 0dh
         jne check_minus_key
         cmp byte[ball_current_speed], 3
         je exit_key_check
         add byte[ball_current_speed], 1
+        mov byte[is_speed_changed], 1
         jmp exit_key_check
+        
         check_minus_key:
         cmp al, 0ch
         jne exit_key_check
         cmp byte[ball_current_speed], 1
         je exit_key_check
         sub byte[ball_current_speed], 1
+        mov byte[is_speed_changed], 1
         exit_key_check:
         ret	
 
@@ -1116,6 +1123,7 @@ ball_crash_right_counter     db 0
 is_ball_crash_stick   db  0
 ball_crash_stick_counter   db  0
 ball_current_speed      db      1
+is_speed_changed        db      0
 v1_speed        dw      3000
 v2_speed        dw      1000
 v3_speed        dw      10
